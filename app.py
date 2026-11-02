@@ -86,6 +86,14 @@ def create_app(test_config: dict | None = None) -> Flask:
             message="The request contains invalid information. Review your input and try again.",
         ), 400
 
+    @app.errorhandler(413)
+    def export_too_large(_error: Exception) -> tuple[str, int]:
+        return render_template(
+            "errors/error.html",
+            title="Export is too large",
+            message="This report exceeds the 5,000-row export limit. Narrow the date range or select a smaller report.",
+        ), 413
+
     @app.errorhandler(500)
     def internal_error(_error: Exception) -> tuple[str, int]:
         return render_template(

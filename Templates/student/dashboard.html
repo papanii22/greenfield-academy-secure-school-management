@@ -19,6 +19,13 @@
       </select>
     </form>
   </div>
+  <div class="export-actions report-downloads" aria-label="Download your reports">
+    <span class="muted-text">Download your reports:</span>
+    <a class="button button-ghost button-small" href="{{ url_for('main.export_student_report', report='attendance', output_format='csv') }}">Attendance CSV</a>
+    <a class="button button-ghost button-small" href="{{ url_for('main.export_student_report', report='attendance', output_format='pdf') }}">Attendance PDF</a>
+    <a class="button button-ghost button-small" href="{{ url_for('main.export_student_report', report='results', output_format='csv', term=dashboard.term) }}">Results CSV</a>
+    <a class="button button-ghost button-small" href="{{ url_for('main.export_student_report', report='results', output_format='pdf', term=dashboard.term) }}">Results PDF</a>
+  </div>
 
   <section class="stat-grid" aria-label="Your attendance summary">
     <article class="stat-card glass-card">

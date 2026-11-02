@@ -20,6 +20,7 @@ from Routes.auth import role_required
 from Routes.validation import parse_term
 from database import school
 from grading import grade_for
+from reporting import report_response
 
 
 teacher_bp = Blueprint("teacher", __name__)
@@ -168,4 +169,90 @@ def results(class_id: int, subject_id: int) -> Any:
         class_id=class_id,
         subject_id=subject_id,
         term=term,
+    )
+
+@teacher_bp.get(
+    "/teacher/classes/<int:class_id>/exports/<report>/<output_format>"
+)
+@role_required("teacher")
+def export_class_report(class_id: int, report: str, output_format: str) -> Any:
+    if report not in {"attendance", "results"}:
+        abort(404)
+    if output_format not in {"csv", "pdf"}:
+        abort(404)
+
+    if report == "attendance":
+        raw_date = request.args.get("date")
+        try:
+            attendance_date = date.fromisoformat(raw_date) if raw_date else date.today()
+        except ValueError:
+            abort(400)
+        roster = school.get_class_roster_for_attendance(
+            session["user_id"],
+            class_id,
+            attendance_date,
+        )
+        if roster is None:
+            abort(403)
+        class_name = roster[0]["class_name"] if roster else f"Class {class_id}"
+        return report_response(
+            [
+                (
+                    attendance_date,
+                    class_name,
+                    student["student_number"],
+                    student["full_name"],
+                    student["status"],
+                )
+                for student in roster
+            ],
+            ["Date", "Class", "Student number", "Student", "Status"],
+            f"Attendance report for {class_name} ({attendance_date})",
+            f"teacher-class-{class_id}-attendance-{attendance_date}",
+            output_format,
+        )
+
+    raw_subject_id = request.args.get("subject_id", "")
+    try:
+        subject_id = int(raw_subject_id)
+    except ValueError:
+        abort(400)
+    if subject_id < 1:
+        abort(400)
+    term = parse_term(request.args.get("term"))
+    roster = school.get_class_roster_for_results(
+        session["user_id"],
+        class_id,
+        subject_id,
+        term,
+    )
+    if roster is None:
+        abort(403)
+    class_name = roster[0]["class_name"] if roster else f"Class {class_id}"
+    subject_name = roster[0]["subject_name"] if roster else f"Subject {subject_id}"
+    return report_response(
+        [
+            (
+                class_name,
+                student["student_number"],
+                student["full_name"],
+                subject_name,
+                term,
+                student["score"],
+                grade_for(student["score"]) if student["score"] is not None else "",
+            )
+            for student in roster
+        ],
+        [
+            "Class",
+            "Student number",
+            "Student",
+            "Subject",
+            "Term",
+            "Score",
+            "Grade",
+        ],
+        f"Results report for {class_name} - {subject_name} (Term {term})",
+        f"teacher-class-{class_id}-subject-{subject_id}-term-{term}",
+        output_format,
     )

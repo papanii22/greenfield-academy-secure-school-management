@@ -433,6 +433,21 @@
   font-size: 1.17rem;
 }
 
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.export-actions .chart-heading-icon {
+  margin-right: 0.2rem;
+}
+
+.report-downloads {
+  margin: -0.5rem 0 1.25rem;
+}
+
 .badge {
   display: inline-flex;
   min-height: 1.55rem;

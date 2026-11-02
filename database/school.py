@@ -7,6 +7,7 @@ import psycopg
 from database.db import connect_database, record_audit_event
 from config import Config
 from grading import grade_for
+from reporting import MAX_REPORT_ROWS
 
 
 CURRENT_TERM = Config.CURRENT_TERM
@@ -441,7 +442,7 @@ def get_class_roster_for_attendance(
                 return None
             cursor.execute(
                 """
-                SELECT s.id, s.student_number, u.full_name, a.status
+                SELECT s.id, s.student_number, u.full_name, c.name AS class_name, a.status
                 FROM classes c
                 JOIN students s ON s.class_id = c.id
                 JOIN users u ON u.id = s.user_id
@@ -520,11 +521,12 @@ def get_class_roster_for_results(
                 return None
             cursor.execute(
                 """
-                SELECT st.id, st.student_number, u.full_name,
+                SELECT st.id, st.student_number, u.full_name, c.name AS class_name,
                        sub.name AS subject_name, r.score
                 FROM teacher_assignments ta
                 JOIN students st ON st.class_id = ta.class_id
                 JOIN users u ON u.id = st.user_id
+                JOIN classes c ON c.id = ta.class_id
                 JOIN subjects sub ON sub.id = ta.subject_id
                 LEFT JOIN results r
                   ON r.student_id = st.id
@@ -682,3 +684,123 @@ def get_student_dashboard(user_id: int, term: int) -> dict[str, Any] | None:
         "results": results,
         "term_averages": term_averages,
     }
+
+
+def get_admin_attendance_export_rows(
+    start_date: date,
+    end_date: date,
+) -> list[dict[str, Any]]:
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT a.attendance_date, c.name AS class_name,
+                       s.student_number, u.full_name AS student_name,
+                       a.status, COALESCE(marker.full_name, 'Unknown') AS marked_by
+                FROM attendance a
+                JOIN students s ON s.id = a.student_id
+                JOIN users u ON u.id = s.user_id
+                JOIN classes c ON c.id = s.class_id
+                LEFT JOIN users marker ON marker.id = a.marked_by
+                WHERE a.attendance_date >= %s AND a.attendance_date <= %s
+                ORDER BY a.attendance_date, c.name, u.full_name
+                LIMIT %s
+                """,
+                (start_date, end_date, MAX_REPORT_ROWS + 1),
+            )
+            return cursor.fetchall()
+
+
+def get_admin_results_export_rows(term: int) -> list[dict[str, Any]]:
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT r.term, c.name AS class_name, s.student_number,
+                       u.full_name AS student_name, sub.name AS subject_name,
+                       r.score, COALESCE(teacher.full_name, 'Unknown') AS entered_by
+                FROM results r
+                JOIN students s ON s.id = r.student_id
+                JOIN users u ON u.id = s.user_id
+                JOIN classes c ON c.id = s.class_id
+                JOIN subjects sub ON sub.id = r.subject_id
+                LEFT JOIN users teacher ON teacher.id = r.entered_by
+                WHERE r.term = %s
+                ORDER BY c.name, u.full_name, sub.name
+                LIMIT %s
+                """,
+                (term, MAX_REPORT_ROWS + 1),
+            )
+            return cursor.fetchall()
+
+
+def get_admin_audit_export_rows(
+    start_date: date,
+    end_date: date,
+    user_id: int | None = None,
+    action: str = "",
+) -> list[dict[str, Any]]:
+    end_exclusive = end_date + timedelta(days=1)
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT a.created_at, COALESCE(u.full_name, 'System') AS actor,
+                       a.action, a.ip_address
+                FROM audit_logs a
+                LEFT JOIN users u ON u.id = a.user_id
+                WHERE a.created_at >= %s AND a.created_at < %s
+                  AND (%s::bigint IS NULL OR a.user_id = %s)
+                  AND (%s = '' OR a.action ILIKE %s)
+                ORDER BY a.created_at DESC, a.id DESC
+                LIMIT %s
+                """,
+                (
+                    start_date,
+                    end_exclusive,
+                    user_id,
+                    user_id,
+                    action,
+                    f"%{action}%",
+                    MAX_REPORT_ROWS + 1,
+                ),
+            )
+            return cursor.fetchall()
+
+
+def get_student_attendance_export_rows(user_id: int) -> list[dict[str, Any]]:
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT a.attendance_date, a.status
+                FROM students s
+                JOIN attendance a ON a.student_id = s.id
+                WHERE s.user_id = %s
+                ORDER BY a.attendance_date DESC
+                LIMIT %s
+                """,
+                (user_id, MAX_REPORT_ROWS + 1),
+            )
+            return cursor.fetchall()
+
+
+def get_student_results_export_rows(
+    user_id: int,
+    term: int,
+) -> list[dict[str, Any]]:
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT r.term, sub.name AS subject_name, r.score
+                FROM students s
+                JOIN results r ON r.student_id = s.id
+                JOIN subjects sub ON sub.id = r.subject_id
+                WHERE s.user_id = %s AND r.term = %s
+                ORDER BY sub.name
+                LIMIT %s
+                """,
+                (user_id, term, MAX_REPORT_ROWS + 1),
+            )
+            return cursor.fetchall()

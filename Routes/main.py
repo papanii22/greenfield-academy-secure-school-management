@@ -1,8 +1,10 @@
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
 from Routes.auth import login_required, role_required
 from Routes.validation import parse_term
 from database import school
+from grading import grade_for
+from reporting import report_response
 
 
 main_bp = Blueprint("main", __name__)
@@ -90,4 +92,44 @@ def student_dashboard():
         charts=charts,
         role_label="Student",
         with_charts=True,
+    )
+
+
+@main_bp.get("/student/exports/<report>/<output_format>")
+@role_required("student")
+def export_student_report(report: str, output_format: str):
+    if report not in {"attendance", "results"}:
+        abort(404)
+    if output_format not in {"csv", "pdf"}:
+        abort(404)
+
+    if report == "attendance":
+        rows = school.get_student_attendance_export_rows(session["user_id"])
+        return report_response(
+            [
+                (record["attendance_date"], record["status"])
+                for record in rows
+            ],
+            ["Date", "Attendance status"],
+            f"Attendance report for {session.get('full_name', 'Student')}",
+            f"student-attendance-{session['user_id']}",
+            output_format,
+        )
+
+    term = parse_term(request.args.get("term"))
+    rows = school.get_student_results_export_rows(session["user_id"], term)
+    return report_response(
+        [
+            (
+                row["term"],
+                row["subject_name"],
+                row["score"],
+                grade_for(row["score"]),
+            )
+            for row in rows
+        ],
+        ["Term", "Subject", "Score", "Grade"],
+        f"Results report for {session.get('full_name', 'Student')} (Term {term})",
+        f"student-results-term-{term}",
+        output_format,
     )

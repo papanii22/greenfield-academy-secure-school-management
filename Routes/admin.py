@@ -1,6 +1,6 @@
 import math
 import secrets
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from argon2 import PasswordHasher
@@ -29,6 +29,8 @@ from wtforms.validators import InputRequired, Length, Optional, Regexp
 from Routes.auth import role_required
 from Routes.validation import parse_page, parse_term
 from database import school
+from grading import grade_for
+from reporting import MAX_REPORT_ROWS, report_response
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -285,6 +287,123 @@ def audit() -> str:
         },
         page_count=page_count,
         role_label="Administrator",
+    )
+
+
+@admin_bp.get("/exports/<report>/<output_format>")
+@role_required("admin")
+def export_report(report: str, output_format: str) -> Any:
+    if report not in {"attendance", "results", "grades", "audit"}:
+        abort(404)
+    if output_format not in {"csv", "pdf"}:
+        abort(404)
+
+    term = parse_term(request.args.get("term"))
+    end_date = _parse_optional_date(request.args.get("end_date")) or date.today()
+    start_date = (
+        _parse_optional_date(request.args.get("start_date"))
+        or end_date - timedelta(days=29)
+    )
+    if end_date < start_date:
+        abort(400)
+
+    if report == "attendance":
+        rows = school.get_admin_attendance_export_rows(start_date, end_date)
+        if len(rows) > MAX_REPORT_ROWS:
+            abort(413)
+        return report_response(
+            [
+                (
+                    row["attendance_date"],
+                    row["class_name"],
+                    row["student_number"],
+                    row["student_name"],
+                    row["status"],
+                    row["marked_by"],
+                )
+                for row in rows
+            ],
+            ["Date", "Class", "Student number", "Student", "Status", "Marked by"],
+            f"School attendance report ({start_date} to {end_date})",
+            f"admin-attendance-{start_date}-{end_date}",
+            output_format,
+        )
+
+    if report == "audit":
+        raw_user_id = request.args.get("user_id", "")
+        if raw_user_id:
+            try:
+                user_id = int(raw_user_id)
+            except ValueError:
+                abort(400)
+            if user_id < 1:
+                abort(400)
+        else:
+            user_id = None
+        action = request.args.get("action", "").strip()
+        if len(action) > 120:
+            abort(400)
+        rows = school.get_admin_audit_export_rows(
+            start_date,
+            end_date,
+            user_id,
+            action,
+        )
+        if len(rows) > MAX_REPORT_ROWS:
+            abort(413)
+        return report_response(
+            [
+                (row["created_at"], row["actor"], row["action"], row["ip_address"])
+                for row in rows
+            ],
+            ["Time", "Account", "Action", "IP address"],
+            f"Audit report ({start_date} to {end_date})",
+            f"admin-audit-{start_date}-{end_date}",
+            output_format,
+        )
+
+    results = school.get_admin_results_export_rows(term)
+    if len(results) > MAX_REPORT_ROWS:
+        abort(413)
+    if report == "results":
+        return report_response(
+            [
+                (
+                    row["class_name"],
+                    row["student_number"],
+                    row["student_name"],
+                    row["subject_name"],
+                    row["term"],
+                    row["score"],
+                    grade_for(row["score"]),
+                    row["entered_by"],
+                )
+                for row in results
+            ],
+            [
+                "Class",
+                "Student number",
+                "Student",
+                "Subject",
+                "Term",
+                "Score",
+                "Grade",
+                "Entered by",
+            ],
+            f"School results report (Term {term})",
+            f"admin-results-term-{term}",
+            output_format,
+        )
+
+    grade_counts = {grade: 0 for grade in "ABCDF"}
+    for row in results:
+        grade_counts[grade_for(row["score"])] += 1
+    return report_response(
+        [(grade, count) for grade, count in grade_counts.items()],
+        ["Grade", "Result count"],
+        f"School grade distribution (Term {term})",
+        f"admin-grades-term-{term}",
+        output_format,
     )
 
 

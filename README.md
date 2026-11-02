@@ -53,3 +53,13 @@ third-party CDN.
 
 The dashboard default term is controlled by the optional `CURRENT_TERM`
 setting (`1`, `2`, or `3`); term filters remain available in each dashboard.
+
+Administrators can export school-wide attendance, results, grade distributions,
+and filtered audit activity as CSV or PDF. Teacher exports are limited to their
+assigned class, date, subject, and term; student exports contain only the
+signed-in student's attendance or results. CSV downloads protect spreadsheet
+cells from formula execution, downloads are marked `no-store`, and exports are
+capped at 5,000 rows. Administrator attendance and audit exports default to the
+most recent 30 days. If a name or other value contains a character unsupported
+by the bundled PDF font, the PDF download explains that CSV should be used
+instead rather than silently altering the data.

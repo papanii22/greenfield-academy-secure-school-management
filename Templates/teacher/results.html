@@ -8,7 +8,11 @@
   <section class="panel glass-card">
     <div class="section-heading">
       <div><p class="eyebrow">Teacher workspace · {{ roster[0].subject_name if roster else "Results" }}</p><h2>Student results</h2></div>
-      <a class="button button-ghost" href="{{ url_for('teacher.index', term=term) }}">Back to dashboard</a>
+      <div class="export-actions">
+        <a class="button button-ghost button-small" href="{{ url_for('teacher.export_class_report', class_id=class_id, report='results', output_format='csv', subject_id=subject_id, term=term) }}">CSV</a>
+        <a class="button button-ghost button-small" href="{{ url_for('teacher.export_class_report', class_id=class_id, report='results', output_format='pdf', subject_id=subject_id, term=term) }}">PDF</a>
+        <a class="button button-ghost" href="{{ url_for('teacher.index', term=term) }}">Back to dashboard</a>
+      </div>
     </div>
     {% if roster %}
       <form method="post" action="{{ url_for('teacher.results', class_id=class_id, subject_id=subject_id) }}" data-submit-loading>
