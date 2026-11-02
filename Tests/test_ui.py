@@ -79,8 +79,8 @@ def test_static_icons_and_theme_assets_are_served_locally(client):
 
 
 def test_theme_tokens_meet_wcag_aa_text_contrast():
-    tokens = (ROOT / "Static" / "css" / "tokens.css").read_text(encoding="utf-8")
-    components = (ROOT / "Static" / "css" / "components.css").read_text(encoding="utf-8")
+    tokens = (ROOT / "public" / "Static" / "css" / "tokens.css").read_text(encoding="utf-8")
+    components = (ROOT / "public" / "Static" / "css" / "components.css").read_text(encoding="utf-8")
     expected_colors = (
         "#0b1417", "#e6f1f2", "#8fa6aa",
         "#f2f8f8", "#0f1f22", "#52696d",

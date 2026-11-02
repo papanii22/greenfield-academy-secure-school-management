@@ -26,6 +26,38 @@ flask --app app run
 The login screen is available at `http://127.0.0.1:5000/login`. The app uses
 PostgreSQL and requires a configured `.env` file.
 
+## Deploy to Vercel
+
+Vercel detects the Flask application in `app.py` and installs dependencies
+from `requirements.txt`; no custom build or start command is needed. The
+application's browser assets are in `public/Static/`, which Vercel serves at
+the existing `/Static/...` URLs. The Flask static route also serves these files
+for local development and Render.
+
+Import the private GitHub repository into Vercel with the repository root as
+the project root. In **Project Settings > Environment Variables**, add these
+for each environment you deploy (Production, and Preview if needed):
+
+- `SECRET_KEY` — keep the same key used to encrypt MFA data in the connected
+  database. Changing it can prevent already-enrolled users from authenticating.
+- `DATABASE_URL` — the PostgreSQL connection URL. Use a hosted database that
+  accepts connections from Vercel, with SSL enabled.
+- `JWT_SECRET` — a strong, independently generated secret.
+- `FLASK_DEBUG` = `false`
+- `SESSION_COOKIE_SECURE` = `true`
+- `TRUST_PROXY_HEADERS` = `true`
+- `RATELIMIT_STORAGE_URI` = `memory://` for a single-instance demo only.
+- `RATELIMIT_ENABLED` = `true`
+- `CURRENT_TERM` = `1` (optional; the application defaults to `1`).
+
+The three secrets are required at application startup. Vercel does not read
+your local `.env`; enter values directly in Vercel and never commit or share
+`.env`. Redeploy after changing environment variables. Check the deployment's
+**Runtime Logs** if it returns an error. Before production or multiple
+instances, configure shared Redis-compatible rate-limit storage and validate
+database connection limits. Use fictional/demo records on free tiers, not real
+student data.
+
 ## Deploy to Render
 
 The repository includes `render.yaml` for a free Render demo web service in
@@ -113,8 +145,8 @@ requires an identity mapping and verified non-owner database role first; the
 proposal documents these prerequisites but does not enable policies.
 
 The interface uses local CSS and JavaScript assets only. Chart.js 4.6.1 is
-vendored under `Static/vendor/` with its MIT license; it is not loaded from a
-third-party CDN.
+vendored under `public/Static/vendor/` with its MIT license; it is not loaded
+from a third-party CDN.
 
 The dashboard default term is controlled by the optional `CURRENT_TERM`
 setting (`1`, `2`, or `3`); term filters remain available in each dashboard.

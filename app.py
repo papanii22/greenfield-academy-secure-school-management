@@ -20,7 +20,12 @@ csrf = CSRFProtect()
 
 
 def create_app(test_config: dict | None = None) -> Flask:
-    app = Flask(__name__, template_folder="Templates", static_folder="Static")
+    app = Flask(
+        __name__,
+        template_folder="Templates",
+        static_folder="public/Static",
+        static_url_path="/Static",
+    )
     app.config.from_object(Config)
     if test_config:
         app.config.update(test_config)
