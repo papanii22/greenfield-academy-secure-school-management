@@ -44,3 +44,7 @@ flask --app app create-admin
 Authentication uses Argon2 password hashes, parameterized PostgreSQL queries,
 CSRF-protected POST forms, session clearing on successful login, and audit
 events for successful and failed logins, logout, and administrator creation.
+
+The interface uses local CSS and JavaScript assets only. Chart.js 4.6.1 is
+vendored under `Static/vendor/` with its MIT license; it is not loaded from a
+third-party CDN.

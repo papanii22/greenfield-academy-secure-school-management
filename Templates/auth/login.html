@@ -1,29 +1,45 @@
 {% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
 
 {% block title %}Sign in | Greenfield Academy{% endblock %}
 
 {% block content %}
-  <section aria-labelledby="login-heading">
+  <section class="login-card glass-card" aria-labelledby="login-heading">
+    <div class="login-brand-mark">
+      {{ icon("logo-mark") }}
+    </div>
+    <p class="eyebrow">Secure School Management</p>
     <h1 id="login-heading">Greenfield Academy</h1>
-    <p>Grow with knowledge.</p>
-    <h2>Sign in</h2>
-    <form method="post" action="{{ url_for('auth.login') }}">
+    <p class="login-motto">Grow with knowledge.</p>
+    <div class="login-divider"></div>
+    <h2>Welcome back</h2>
+    <p class="login-intro">Sign in to continue to your school workspace.</p>
+    <form method="post" action="{{ url_for('auth.login') }}" data-submit-loading>
       {{ form.csrf_token }}
-      <div>
+      <div class="form-field">
         {{ form.email.label }}
-        {{ form.email(autocomplete="username", inputmode="email") }}
+        {{ form.email(class_="form-control", autocomplete="username", inputmode="email", placeholder="name@greenfield.test", required=true) }}
         {% for error in form.email.errors %}
-          <p role="alert">{{ error }}</p>
+          <p class="field-error" id="email-error" role="alert">{{ error }}</p>
         {% endfor %}
       </div>
-      <div>
+      <div class="form-field">
         {{ form.password.label }}
-        {{ form.password(autocomplete="current-password") }}
+        <div class="password-control">
+          {{ form.password(class_="form-control", autocomplete="current-password", placeholder="Enter your password", required=true) }}
+          <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" data-password-toggle>
+            {{ icon("eye") }}{{ icon("eye-off") }}
+          </button>
+        </div>
         {% for error in form.password.errors %}
-          <p role="alert">{{ error }}</p>
+          <p class="field-error" id="password-error" role="alert">{{ error }}</p>
         {% endfor %}
       </div>
-      {{ form.submit() }}
+      <button class="button button-primary login-submit" type="submit">
+        <span>Sign in</span>
+        {{ icon("chevron-right") }}
+      </button>
     </form>
+    <p class="login-footnote">Authorized school accounts only</p>
   </section>
 {% endblock %}

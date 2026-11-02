@@ -1,29 +1,146 @@
+{% from "partials/icons.html" import icon %}
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark light">
+    <meta name="theme-color" content="#0b1417">
     <title>{% block title %}Greenfield Academy{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/transitions.css') }}">
+    <script nonce="{{ csp_nonce }}">
+      (() => {
+        const savedTheme = localStorage.getItem("greenfield-theme");
+        const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme =
+          savedTheme === "light" || savedTheme === "dark"
+            ? savedTheme
+            : (systemPrefersDark ? "dark" : "light");
+      })();
+    </script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/loader.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
   </head>
-  <body>
-    <header>
-      <a href="{{ url_for('main.index') }}">Greenfield Academy</a>
-      {% if session.get("user_id") %}
-        <span>{{ session.get("full_name") }}</span>
-        <form action="{{ url_for('auth.logout') }}" method="post">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit">Sign out</button>
-        </form>
-      {% endif %}
-    </header>
-    <main>
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, message in messages %}
-          <p role="status" data-category="{{ category }}">{{ message }}</p>
-        {% endfor %}
-      {% endwith %}
-      {% block content %}{% endblock %}
-    </main>
-    <footer>Demo system, fictional data.</footer>
+  <body class="{% if session.get('user_id') %}app-body{% else %}login-body{% endif %}"
+        data-show-loader="{{ 'true' if show_branded_loader else 'false' }}">
+    <div class="top-progress" aria-hidden="true"></div>
+    <div class="branded-loader" aria-hidden="true">
+      <svg class="loader-logo"><use href="{{ url_for('static', filename='icons/sprite.svg') }}#logo-mark"></use></svg>
+      <span class="loader-spinner"></span>
+      <span class="visually-hidden">Loading Greenfield Academy</span>
+    </div>
+    {% if session.get("user_id") %}
+      <div class="app-shell">
+        <aside class="sidebar" id="app-sidebar" aria-label="Main navigation">
+          <a class="brand" href="{{ url_for('main.index') }}" aria-label="Greenfield Academy home">
+            {{ icon("logo-mark", "brand-mark") }}
+            <span class="brand-copy">
+              <strong>Greenfield Academy</strong>
+              <small>Grow with knowledge.</small>
+            </span>
+          </a>
+          <div class="sidebar-heading">Workspace</div>
+          <nav class="side-nav">
+            <span class="nav-indicator" aria-hidden="true"></span>
+            {% if session.get("role") == "admin" %}
+              <a class="nav-link {% if request.path == '/admin' %}is-active{% endif %}"
+                 href="{{ url_for('admin.index') }}" data-nav-link>
+                {{ icon("dashboard") }}<span>Dashboard</span>
+              </a>
+            {% elif session.get("role") == "teacher" %}
+              <a class="nav-link {% if request.path == '/teacher' %}is-active{% endif %}"
+                 href="{{ url_for('main.teacher_dashboard') }}" data-nav-link>
+                {{ icon("dashboard") }}<span>Dashboard</span>
+              </a>
+            {% else %}
+              <a class="nav-link {% if request.path == '/student' %}is-active{% endif %}"
+                 href="{{ url_for('main.student_dashboard') }}" data-nav-link>
+                {{ icon("dashboard") }}<span>Dashboard</span>
+              </a>
+            {% endif %}
+          </nav>
+          <div class="sidebar-bottom">
+            <div class="user-card">
+              <span class="avatar">{{ session.get("full_name", "U")[:1]|upper }}</span>
+              <span class="user-copy">
+                <strong>{{ session.get("full_name") }}</strong>
+                <small>{{ session.get("role", "")|title }}</small>
+              </span>
+              <form action="{{ url_for('auth.logout') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="icon-button logout-button" type="submit" aria-label="Sign out" title="Sign out">
+                  {{ icon("log-out") }}
+                </button>
+              </form>
+            </div>
+            <p class="demo-note">Demo system, fictional data.</p>
+          </div>
+        </aside>
+        <button class="sidebar-scrim" type="button" aria-label="Close navigation" data-menu-close></button>
+        <div class="workspace">
+          <header class="topbar">
+            <button class="icon-button menu-button" type="button" aria-label="Open navigation"
+                    aria-expanded="false" aria-controls="app-sidebar" data-menu-toggle>
+              {{ icon("menu") }}
+            </button>
+            <div class="page-heading">
+              <span class="breadcrumb">Greenfield Academy <span aria-hidden="true">/</span> {{ session.get("role", "")|title }}</span>
+              <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+            </div>
+            <div class="topbar-actions">
+              <button class="icon-button theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false" data-theme-toggle>
+                {{ icon("sun", "theme-sun") }}{{ icon("moon", "theme-moon") }}
+              </button>
+              <div class="user-menu">
+                <button class="user-menu-toggle" type="button" aria-haspopup="true"
+                        aria-expanded="false" aria-controls="user-menu-panel"
+                        aria-label="Open user menu" data-user-menu-toggle>
+                  <span class="topbar-avatar" aria-hidden="true">{{ session.get("full_name", "U")[:1]|upper }}</span>
+                  <span class="user-menu-label">{{ session.get("full_name") }}</span>
+                  {{ icon("chevron-right", "user-menu-chevron") }}
+                </button>
+                <div class="user-menu-panel glass-card" id="user-menu-panel"
+                     role="menu" hidden data-user-menu>
+                  <strong>{{ session.get("full_name") }}</strong>
+                  <span>{{ session.get("role", "")|title }}</span>
+                  <form action="{{ url_for('auth.logout') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="button button-ghost" type="submit" role="menuitem">{{ icon("log-out") }} Sign out</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </header>
+          <main class="main-content" id="main-content">
+    {% else %}
+      <main class="login-layout">
+    {% endif %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="toast-stack{% if not session.get('user_id') %} login-toast-stack{% endif %}" aria-live="polite">
+              {% for category, message in messages %}
+                <div class="toast toast-{{ category if category in ['success', 'warning', 'error', 'info'] else 'info' }}" role="status">
+                  {{ icon("alert-triangle" if category == "error" else "info") }}
+                  <span>{{ message }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    {% if session.get("user_id") %}
+          </main>
+        </div>
+      </div>
+    {% else %}
+        <footer class="login-footer">Greenfield Academy · Demo system, fictional data.</footer>
+      </main>
+    {% endif %}
   </body>
 </html>

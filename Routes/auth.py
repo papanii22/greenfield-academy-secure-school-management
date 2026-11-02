@@ -106,6 +106,7 @@ def login() -> Any:
         session["user_id"] = user["id"]
         session["full_name"] = user["full_name"]
         session["role"] = user["role"]
+        session["show_branded_loader"] = True
         return redirect(url_for("main.dashboard"))
 
     return render_template("auth/login.html", form=form)

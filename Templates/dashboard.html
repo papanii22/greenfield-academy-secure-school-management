@@ -1,8 +1,29 @@
 {% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
 
 {% block title %}{{ role_label }} dashboard | Greenfield Academy{% endblock %}
+{% block page_title %}{{ role_label }} dashboard{% endblock %}
 
 {% block content %}
-  <h1>{{ role_label }} dashboard</h1>
-  <p>Welcome to Greenfield Academy.</p>
+  <section class="welcome-panel glass-card">
+    <div>
+      <p class="eyebrow">Greenfield Academy</p>
+      <h2>Welcome, {{ session.get("full_name") }}</h2>
+      <p>Your secure school workspace is ready.</p>
+    </div>
+    <div class="welcome-icon" aria-hidden="true">{{ icon("graduation-cap") }}</div>
+  </section>
+  <section class="dashboard-placeholder" aria-labelledby="workspace-heading">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">{{ role_label }} workspace</p>
+        <h2 id="workspace-heading">Your school at a glance</h2>
+      </div>
+      <span class="badge badge-role">{{ role_label }}</span>
+    </div>
+    <div class="empty-state glass-card">
+      {{ icon("activity") }}
+      <p>Workspace panels will appear here as school features are set up.</p>
+    </div>
+  </section>
 {% endblock %}

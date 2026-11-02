@@ -1,6 +1,7 @@
 import click
+import secrets
 from argon2 import PasswordHasher
-from flask import Flask, render_template, session
+from flask import Flask, g, render_template, session
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from psycopg import errors
 
@@ -19,11 +20,37 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config.from_object(Config)
     if test_config:
         app.config.update(test_config)
-    csrf.init_app(app)
-
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
+
+    @app.before_request
+    def create_csp_nonce() -> None:
+        g.csp_nonce = secrets.token_urlsafe(18)
+
+    csrf.init_app(app)
+
+    @app.context_processor
+    def template_context() -> dict[str, str | bool]:
+        return {
+            "csp_nonce": g.csp_nonce,
+            "show_branded_loader": bool(session.pop("show_branded_loader", False)),
+        }
+
+    @app.after_request
+    def set_content_security_policy(response):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            f"script-src 'self' 'nonce-{g.csp_nonce}'; "
+            "style-src 'self'; "
+            "img-src 'self' data:; "
+            "font-src 'self'; "
+            "object-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            "frame-ancestors 'none'"
+        )
+        return response
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error: CSRFError) -> tuple[str, int]:
