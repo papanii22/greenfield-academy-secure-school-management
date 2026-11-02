@@ -32,7 +32,8 @@ Vercel detects the Flask application in `app.py` and installs dependencies
 from `requirements.txt`; no custom build or start command is needed. The
 application's browser assets are in `public/Static/`, which Vercel serves at
 the existing `/Static/...` URLs. The Flask static route also serves these files
-for local development and Render.
+for local development. `vercel.json` sets a 60-second function duration for
+requests such as report exports.
 
 Import the private GitHub repository into Vercel with the repository root as
 the project root. In **Project Settings > Environment Variables**, add these
@@ -58,42 +59,20 @@ instances, configure shared Redis-compatible rate-limit storage and validate
 database connection limits. Use fictional/demo records on free tiers, not real
 student data.
 
-## Deploy to Render
-
-The repository includes `render.yaml` for a free Render demo web service in
-the Frankfurt region. Free services can sleep when idle and cold-start on the
-next request; use this tier only with fictional/demo data, not real student
-records. Push the project to a private GitHub repository, then create a
-Blueprint in Render connected to that repository. Enter the current
-`SECRET_KEY` from `.env`, a newly generated
-`JWT_SECRET`, and the rotated Supabase `DATABASE_URL` as secret environment
-variables in the Render dashboard. Use the same `SECRET_KEY` that encrypted
-existing MFA data; if it was changed after enrollment, MFA resets are required.
-Never commit `.env` or paste secret values into chat.
-
-The service uses Gunicorn, HTTPS-only session cookies, and one trusted proxy
-hop for client IP handling. Its `/healthz` route supports Render health checks.
-Do not change the `SECRET_KEY` after deployment: MFA secrets are encrypted
-using it. If you already changed that key, incomplete MFA enrollment can be
-restarted from the setup page; already-enabled MFA accounts need a careful
-administrative reset before they can authenticate again.
-
-The Blueprint uses an in-memory rate-limit store and one worker for the initial
-single-instance deployment. Before adding workers or scaling to multiple
-instances, provision shared Redis-compatible storage and set
-`RATELIMIT_STORAGE_URI` to its private internal URL in Render.
-
 ## Create the first administrator
 
-Run this in the project root. The password prompt is hidden and requires
-confirmation; passwords must be at least 12 characters.
+Run this in the project root with `.env` configured to point to the intended
+hosted PostgreSQL database. The database must accept a connection from your
+machine. The password prompt is hidden and requires confirmation; passwords
+must be at least 12 characters.
 
 ```powershell
-flask --app app create-admin
+.\.venv\Scripts\flask.exe --app app create-admin
 ```
 
-On Render, open the service Shell and run the same command there to create the
-initial administrator against the hosted database.
+Do not run this command against a production school database unless you intend
+to create the account there. Vercel Functions do not provide a persistent
+service shell.
 
 ## Run tests
 
