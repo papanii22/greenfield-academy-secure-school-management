@@ -16,3 +16,31 @@ Copy-Item .env.example .env
 
 Fill in `.env` using the setup instructions provided at the Stage 1 stop point.
 Do not commit `.env`; `.gitignore` excludes it.
+
+## Run the application
+
+```powershell
+flask --app app run
+```
+
+The login screen is available at `http://127.0.0.1:5000/login`. The app uses
+PostgreSQL and requires a configured `.env` file.
+
+## Create the first administrator
+
+Run this in the project root. The password prompt is hidden and requires
+confirmation; passwords must be at least 12 characters.
+
+```powershell
+flask --app app create-admin
+```
+
+## Run tests
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q Tests
+```
+
+Authentication uses Argon2 password hashes, parameterized PostgreSQL queries,
+CSRF-protected POST forms, session clearing on successful login, and audit
+events for successful and failed logins, logout, and administrator creation.
