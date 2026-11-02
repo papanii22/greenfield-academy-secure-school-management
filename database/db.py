@@ -14,6 +14,7 @@ def connect_database() -> psycopg.Connection:
         connect_timeout=10,
         row_factory=dict_row,
         sslmode="require",
+        prepare_threshold=None,
     )
 
 

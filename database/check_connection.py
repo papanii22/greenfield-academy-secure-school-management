@@ -14,6 +14,7 @@ def main() -> int:
             Config.DATABASE_URL,
             connect_timeout=10,
             sslmode="require",
+            prepare_threshold=None,
         ) as connection:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")

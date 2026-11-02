@@ -41,8 +41,12 @@ for each environment you deploy (Production, and Preview if needed):
 
 - `SECRET_KEY` — keep the same key used to encrypt MFA data in the connected
   database. Changing it can prevent already-enrolled users from authenticating.
-- `DATABASE_URL` — the PostgreSQL connection URL. Use a hosted database that
-  accepts connections from Vercel, with SSL enabled.
+- `DATABASE_URL` — the PostgreSQL connection URL. For Supabase, open the
+  project **Connect** dialog, select **Transaction pooler**, copy its URI, and
+  replace the password placeholder locally before adding it as a secret in
+  Vercel. Do not construct the pooler hostname or username yourself. The app
+  uses SSL and disables prepared statements for transaction-pooler
+  compatibility. Percent-encode reserved characters in the database password.
 - `JWT_SECRET` — a strong, independently generated secret.
 - `FLASK_DEBUG` = `false`
 - `SESSION_COOKIE_SECURE` = `true`
@@ -58,6 +62,11 @@ your local `.env`; enter values directly in Vercel and never commit or share
 instances, configure shared Redis-compatible rate-limit storage and validate
 database connection limits. Use fictional/demo records on free tiers, not real
 student data.
+
+The app does not create database tables on startup. For a new Supabase database,
+review and run `database/schema.sql` in the Supabase SQL Editor before the first
+login. Do not run it against a database containing tables or data you need
+without first reviewing the statements and taking a backup.
 
 ## Create the first administrator
 
