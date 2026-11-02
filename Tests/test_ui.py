@@ -110,6 +110,7 @@ def test_dashboard_consumes_one_time_login_loader_flag(client, admin_dashboard):
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
+        session["mfa_verified"] = True
         session["full_name"] = "Demo Administrator"
         session["show_branded_loader"] = True
 
@@ -125,6 +126,7 @@ def test_authenticated_shell_has_theme_and_user_menu_controls(client, admin_dash
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
+        session["mfa_verified"] = True
         session["full_name"] = "Demo Administrator"
 
     response = client.get("/admin")

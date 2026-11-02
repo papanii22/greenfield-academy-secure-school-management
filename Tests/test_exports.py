@@ -10,6 +10,7 @@ def set_session(client, user_id, role):
         session["user_id"] = user_id
         session["role"] = role
         session["full_name"] = "Example User"
+        session["mfa_verified"] = True
 
 
 def test_admin_attendance_export_uses_date_filter_and_attachment(client, monkeypatch):

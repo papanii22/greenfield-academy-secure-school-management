@@ -2,8 +2,10 @@ from html.parser import HTMLParser
 
 from argon2 import PasswordHasher
 from click.testing import CliRunner
+import pyotp
 
 from Routes import auth
+from mfa_crypto import encrypt_mfa_secret
 
 
 class CsrfTokenParser(HTMLParser):
@@ -17,8 +19,8 @@ class CsrfTokenParser(HTMLParser):
             self.value = attributes.get("value")
 
 
-def csrf_token(client) -> str:
-    response = client.get("/login")
+def csrf_token(client, path="/login") -> str:
+    response = client.get(path)
     parser = CsrfTokenParser()
     parser.feed(response.get_data(as_text=True))
     assert parser.value
@@ -40,6 +42,7 @@ def login(client, email: str, password: str):
 
 def test_successful_login_clears_old_session_and_redirects(client, monkeypatch):
     password = "correct horse battery staple"
+    secret = pyotp.random_base32()
     user = {
         "id": 41,
         "full_name": "Avery Student",
@@ -47,9 +50,16 @@ def test_successful_login_clears_old_session_and_redirects(client, monkeypatch):
         "password_hash": PasswordHasher().hash(password),
         "role": "student",
         "is_active": True,
+        "mfa_secret": encrypt_mfa_secret(secret),
+        "mfa_enabled": True,
+        "must_change_password": False,
+        "is_locked": False,
     }
     audit_events = []
     monkeypatch.setattr(auth, "get_user_by_email", lambda _email: user)
+    monkeypatch.setattr(auth, "get_user_auth_data", lambda _user_id: user)
+    monkeypatch.setattr(auth, "clear_login_failures", lambda _user_id: None)
+    monkeypatch.setattr(auth, "consume_mfa_backup_code", lambda *_args: False)
     monkeypatch.setattr(
         auth,
         "record_audit_event",
@@ -62,16 +72,29 @@ def test_successful_login_clears_old_session_and_redirects(client, monkeypatch):
     response = login(client, user["email"], password)
 
     assert response.status_code == 302
+    assert response.headers["Location"].endswith("/mfa/verify")
+    with client.session_transaction() as session:
+        assert session["mfa_pending_user_id"] == 41
+        assert "user_id" not in session
+
+    token = csrf_token(client, "/mfa/verify")
+    response = client.post(
+        "/mfa/verify",
+        data={"csrf_token": token, "code": pyotp.TOTP(secret).now()},
+    )
+
+    assert response.status_code == 302
     assert response.headers["Location"].endswith("/dashboard")
     with client.session_transaction() as session:
         assert session["user_id"] == 41
         assert session["role"] == "student"
+        assert session["mfa_verified"] is True
         assert "old_session_value" not in session
         assert session.permanent is True
     assert audit_events == [(41, "login_success", "127.0.0.1")]
 
 
-def test_temporary_password_login_requires_password_change(client, monkeypatch):
+def test_temporary_password_login_requires_mfa_before_password_change(client, monkeypatch):
     user = {
         "id": 41,
         "full_name": "Avery Student",
@@ -87,13 +110,10 @@ def test_temporary_password_login_requires_password_change(client, monkeypatch):
     response = login(client, user["email"], "temporary-password")
 
     assert response.status_code == 302
-    assert response.headers["Location"].endswith("/change-password")
+    assert response.headers["Location"].endswith("/mfa/setup")
     with client.session_transaction() as session:
-        assert session["must_change_password"] is True
-
-    change_response = client.get("/change-password")
-    assert change_response.status_code == 200
-    assert b"Update your temporary password" in change_response.data
+        assert session["mfa_pending_user_id"] == 41
+        assert "user_id" not in session
 
 
 def test_temporary_password_cannot_access_dashboard(client):
@@ -101,6 +121,7 @@ def test_temporary_password_cannot_access_dashboard(client):
         session["user_id"] = 41
         session["role"] = "student"
         session["must_change_password"] = True
+        session["mfa_verified"] = True
 
     response = client.get("/student")
 
@@ -131,6 +152,7 @@ def test_password_change_updates_hash_and_clears_requirement(client, monkeypatch
         session["user_id"] = 41
         session["role"] = "student"
         session["must_change_password"] = True
+        session["mfa_verified"] = True
 
     response = client.post(
         "/change-password",
@@ -166,6 +188,7 @@ def test_wrong_password_uses_generic_failure_message(client, monkeypatch):
         "record_audit_event",
         lambda *args: audit_events.append(args),
     )
+    monkeypatch.setattr(auth, "register_failed_login", lambda _user_id: False)
 
     response = login(client, user["email"], "not-the-password")
 
@@ -221,6 +244,7 @@ def test_admin_route_allows_admin(client, admin_dashboard):
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
+        session["mfa_verified"] = True
 
     response = client.get("/admin")
 
@@ -239,6 +263,7 @@ def test_admin_route_rejects_non_admin(client):
     with client.session_transaction() as session:
         session["user_id"] = 2
         session["role"] = "teacher"
+        session["mfa_verified"] = True
 
     response = client.get("/admin")
 
@@ -250,6 +275,7 @@ def test_logout_requires_csrf_token(client):
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
+        session["mfa_verified"] = True
 
     response = client.post("/logout")
 
@@ -267,6 +293,7 @@ def test_logout_clears_session_and_records_audit(client, monkeypatch):
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
+        session["mfa_verified"] = True
 
     response = client.post(
         "/logout",
@@ -285,6 +312,7 @@ def test_get_logout_is_not_allowed(client):
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
+        session["mfa_verified"] = True
 
     response = client.get("/logout")
 

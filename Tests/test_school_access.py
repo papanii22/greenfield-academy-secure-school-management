@@ -50,6 +50,7 @@ def test_student_dashboard_ignores_tampered_student_id(client, monkeypatch):
     with client.session_transaction() as session:
         session["user_id"] = 501
         session["role"] = "student"
+        session["mfa_verified"] = True
         session["full_name"] = "Signed-in Student"
 
     response = client.get("/student?student_id=999&user_id=999&term=1")
@@ -64,6 +65,7 @@ def test_student_has_no_route_that_accepts_another_student_id(client):
     with client.session_transaction() as session:
         session["user_id"] = 501
         session["role"] = "student"
+        session["mfa_verified"] = True
 
     response = client.get("/student/999")
 
@@ -85,6 +87,7 @@ def test_teacher_cannot_open_another_class_attendance(client, monkeypatch):
     with client.session_transaction() as session:
         session["user_id"] = 17
         session["role"] = "teacher"
+        session["mfa_verified"] = True
 
     response = client.get("/teacher/classes/88/attendance")
 
@@ -103,6 +106,7 @@ def test_teacher_dashboard_uses_authenticated_teacher_id(client, monkeypatch):
     with client.session_transaction() as session:
         session["user_id"] = 17
         session["role"] = "teacher"
+        session["mfa_verified"] = True
 
     response = client.get("/teacher?teacher_id=999&term=2")
 
@@ -125,6 +129,7 @@ def test_teacher_attendance_page_renders_scoped_roster(client, monkeypatch):
     with client.session_transaction() as session:
         session["user_id"] = 17
         session["role"] = "teacher"
+        session["mfa_verified"] = True
 
     response = client.get("/teacher/classes/3/attendance")
 
@@ -149,6 +154,7 @@ def test_teacher_results_page_renders_derived_grade_badge(client, monkeypatch):
     with client.session_transaction() as session:
         session["user_id"] = 17
         session["role"] = "teacher"
+        session["mfa_verified"] = True
 
     response = client.get("/teacher/classes/3/results/5?term=2")
 
@@ -180,6 +186,7 @@ def test_attendance_post_does_not_apply_tampered_student_id(client, monkeypatch)
     with client.session_transaction() as session:
         session["user_id"] = 17
         session["role"] = "teacher"
+        session["mfa_verified"] = True
 
     response = client.post(
         "/teacher/classes/3/attendance",
@@ -219,6 +226,7 @@ def test_results_post_only_saves_rostered_students(client, monkeypatch):
     with client.session_transaction() as session:
         session["user_id"] = 17
         session["role"] = "teacher"
+        session["mfa_verified"] = True
 
     response = client.post(
         "/teacher/classes/3/results/5",

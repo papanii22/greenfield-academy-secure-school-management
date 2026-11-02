@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Verify your identity | Greenfield Academy{% endblock %}
+
+{% block content %}
+  <section class="login-card glass-card" aria-labelledby="mfa-verify-heading">
+    <div class="login-brand-mark">{{ icon("shield") }}</div>
+    <p class="eyebrow">Additional verification</p>
+    <h1 id="mfa-verify-heading">Verify your identity</h1>
+    <p class="login-intro">
+      Enter a current authenticator code or one of your unused recovery codes.
+    </p>
+    <form method="post" action="{{ url_for('auth.mfa_verify') }}" data-submit-loading>
+      {{ form.csrf_token }}
+      <div class="form-field">
+        {{ form.code.label }}
+        {{ form.code(class_="form-control", autocomplete="one-time-code", inputmode="numeric", maxlength=32, required=true) }}
+        {% for error in form.code.errors %}
+          <p class="field-error" role="alert">{{ error }}</p>
+        {% endfor %}
+      </div>
+      <button class="button button-primary login-submit" type="submit">Verify</button>
+    </form>
+    <p class="login-footnote">Recovery codes can each be used once.</p>
+  </section>
+{% endblock %}

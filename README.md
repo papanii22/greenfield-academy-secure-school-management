@@ -47,6 +47,41 @@ events for successful and failed logins, logout, password changes, and
 administrator creation. New accounts receive a one-time temporary password and
 must change it before accessing their dashboard.
 
+## Mandatory MFA and read-only API
+
+MFA is required for every role. After entering a valid password, users enroll an
+authenticator app by scanning the locally generated QR code, then confirming a
+time-based verification code. Ten one-time recovery codes are shown once after
+enrollment; store them securely. The authenticator secret is encrypted in the
+database, and recovery codes are stored as password hashes. Login is not
+complete until MFA succeeds. Accounts with temporary passwords must still
+change the password before accessing school pages.
+
+The login, MFA, password-change, and API-token forms are rate limited. The
+default `RATELIMIT_STORAGE_URI=memory://` is suitable for local development
+only; configure shared persistent storage such as Redis when deploying multiple
+workers. Set `RATELIMIT_STORAGE_URI` in `.env` to the storage URI for that
+service.
+
+An MFA-verified user can create a bearer token from the authenticated
+application. Tokens are signed with `JWT_SECRET`, expire after 15 minutes, and
+grant only `profile:read` and `dashboard:read` scopes. Keep this secret private
+and use a strong, independently generated value. The read-only endpoints are:
+
+- `GET /api/v1/me` — the authenticated user's profile.
+- `GET /api/v1/dashboard` — the authenticated user's role-scoped dashboard;
+  optionally pass `?term=1`, `?term=2`, or `?term=3`.
+
+Send tokens in the `Authorization: Bearer <token>` header. API responses are
+marked `no-store`; endpoints also check that the account is still active and
+the role still matches the token. Do not put bearer tokens in URLs or logs.
+
+`database/rls_proposal.sql` is documentation only and must not be executed.
+The current application uses its own Argon2 authentication and database
+connection, not Supabase Auth identities. Real Supabase row-level security
+requires an identity mapping and verified non-owner database role first; the
+proposal documents these prerequisites but does not enable policies.
+
 The interface uses local CSS and JavaScript assets only. Chart.js 4.6.1 is
 vendored under `Static/vendor/` with its MIT license; it is not loaded from a
 third-party CDN.

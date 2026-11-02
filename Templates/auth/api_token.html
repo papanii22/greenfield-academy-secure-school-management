@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}API token | Greenfield Academy{% endblock %}
+{% block page_title %}API token{% endblock %}
+
+{% block content %}
+  <section class="form-panel glass-card" aria-labelledby="api-token-heading">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Read-only API access</p>
+        <h2 id="api-token-heading">Short-lived access token</h2>
+      </div>
+    </div>
+    <p class="muted-text">
+      This token expires in 15 minutes and is shown only once. Treat it like a password.
+    </p>
+    <code class="api-token-value">{{ access_token }}</code>
+    <p class="muted-text">Use it with <code>Authorization: Bearer &lt;token&gt;</code> for the read-only API.</p>
+    <a class="button button-primary" href="{{ url_for('main.dashboard') }}">Return to workspace</a>
+  </section>
+{% endblock %}

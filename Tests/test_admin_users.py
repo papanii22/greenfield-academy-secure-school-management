@@ -52,6 +52,7 @@ def admin_session(client, user_id=1):
         session["user_id"] = user_id
         session["role"] = "admin"
         session["full_name"] = "Demo Administrator"
+        session["mfa_verified"] = True
 
 
 def test_admin_creates_student_with_one_time_temporary_password(

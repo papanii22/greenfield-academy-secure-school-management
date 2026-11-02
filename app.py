@@ -6,11 +6,13 @@ from flask_wtf.csrf import CSRFError, CSRFProtect
 from psycopg import errors
 
 from Routes.admin import admin_bp
+from Routes.api import api_bp
 from Routes.auth import auth_bp
 from Routes.main import main_bp
 from Routes.teacher import teacher_bp
 from config import Config
 from database.db import connect_database, record_audit_event
+from extensions import limiter
 
 
 csrf = CSRFProtect()
@@ -21,10 +23,16 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config.from_object(Config)
     if test_config:
         app.config.update(test_config)
+    if app.config.get("TESTING") and not (
+        test_config and "RATELIMIT_ENABLED" in test_config
+    ):
+        app.config["RATELIMIT_ENABLED"] = False
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(teacher_bp)
+    app.register_blueprint(api_bp)
+    limiter.init_app(app)
 
     @app.before_request
     def create_csp_nonce() -> None:
@@ -93,6 +101,14 @@ def create_app(test_config: dict | None = None) -> Flask:
             title="Export is too large",
             message="This report exceeds the 5,000-row export limit. Narrow the date range or select a smaller report.",
         ), 413
+
+    @app.errorhandler(429)
+    def too_many_requests(_error: Exception) -> tuple[str, int]:
+        return render_template(
+            "errors/error.html",
+            title="Too many attempts",
+            message="Too many requests were received. Wait a few minutes and try again.",
+        ), 429
 
     @app.errorhandler(500)
     def internal_error(_error: Exception) -> tuple[str, int]:

@@ -448,6 +448,53 @@
   margin: -0.5rem 0 1.25rem;
 }
 
+.mfa-qr {
+  display: block;
+  width: min(100%, 13rem);
+  height: auto;
+  margin: 0 auto 1rem;
+  border: 0.6rem solid #fff;
+  border-radius: 0.7rem;
+}
+
+.mfa-manual-label {
+  margin: 0 0 0.45rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.mfa-secret,
+.api-token-value {
+  display: block;
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.7rem;
+  background: rgba(0, 0, 0, 0.12);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+  text-align: center;
+  user-select: all;
+}
+
+.backup-code-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.55rem;
+  margin: 1rem 0;
+}
+
+.backup-code-list code {
+  padding: 0.65rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.6rem;
+  background: rgba(0, 0, 0, 0.12);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  text-align: center;
+}
+
 .badge {
   display: inline-flex;
   min-height: 1.55rem;

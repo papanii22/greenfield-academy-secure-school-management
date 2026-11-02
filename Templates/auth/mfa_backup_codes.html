@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Save recovery codes | Greenfield Academy{% endblock %}
+{% block page_title %}Save recovery codes{% endblock %}
+
+{% block content %}
+  <section class="form-panel glass-card" aria-labelledby="backup-codes-heading">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">MFA enabled</p>
+        <h2 id="backup-codes-heading">Save your recovery codes</h2>
+      </div>
+    </div>
+    <p class="muted-text">
+      Each code works once if you cannot access your authenticator. This list will not be shown again.
+      Store it somewhere private and do not share it.
+    </p>
+    <div class="backup-code-list" aria-label="One-time recovery codes">
+      {% for code in backup_codes %}
+        <code>{{ code }}</code>
+      {% endfor %}
+    </div>
+    <div class="form-actions">
+      {% if must_change_password %}
+        <a class="button button-primary" href="{{ url_for('auth.change_password') }}">Continue to password change</a>
+      {% else %}
+        <a class="button button-primary" href="{{ url_for('main.dashboard') }}">Continue to workspace</a>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

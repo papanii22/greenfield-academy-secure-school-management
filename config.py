@@ -47,6 +47,8 @@ class Config:
     FLASK_DEBUG = _boolean_setting("FLASK_DEBUG", False)
     SESSION_COOKIE_SECURE = _boolean_setting("SESSION_COOKIE_SECURE", False)
     CURRENT_TERM = _term_setting()
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://").strip()
+    RATELIMIT_ENABLED = _boolean_setting("RATELIMIT_ENABLED", True)
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

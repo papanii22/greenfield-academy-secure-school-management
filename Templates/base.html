@@ -127,6 +127,10 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="button button-ghost" type="submit" role="menuitem">{{ icon("log-out") }} Sign out</button>
                   </form>
+                  <form action="{{ url_for('auth.create_api_token') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="button button-ghost" type="submit" role="menuitem">Generate API token</button>
+                  </form>
                 </div>
               </div>
             </div>

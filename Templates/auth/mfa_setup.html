@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Secure your account | Greenfield Academy{% endblock %}
+
+{% block content %}
+  <section class="login-card glass-card" aria-labelledby="mfa-setup-heading">
+    <div class="login-brand-mark">{{ icon("shield") }}</div>
+    <p class="eyebrow">Required account security</p>
+    <h1 id="mfa-setup-heading">Set up authenticator MFA</h1>
+    <p class="login-intro">
+      Scan this QR code with an authenticator app, then enter its current six-digit code.
+    </p>
+    <img class="mfa-qr" src="data:image/png;base64,{{ qr_data }}"
+         alt="Authenticator setup QR code">
+    <p class="mfa-manual-label">Or enter this setup key manually:</p>
+    <code class="mfa-secret">{{ secret }}</code>
+    <form method="post" action="{{ url_for('auth.mfa_setup') }}" data-submit-loading>
+      {{ form.csrf_token }}
+      <div class="form-field">
+        {{ form.code.label }}
+        {{ form.code(class_="form-control", autocomplete="one-time-code", inputmode="numeric", maxlength=32, required=true) }}
+        {% for error in form.code.errors %}
+          <p class="field-error" role="alert">{{ error }}</p>
+        {% endfor %}
+      </div>
+      <button class="button button-primary login-submit" type="submit">Enable MFA</button>
+    </form>
+    <p class="login-footnote">You must enable MFA before accessing your school workspace.</p>
+  </section>
+{% endblock %}

@@ -1,0 +1,45 @@
+-- PROPOSAL ONLY: do not execute against the current schema.
+--
+-- The Flask application currently authenticates with its own Argon2 password
+-- hashes and connects through DATABASE_URL. It does not use Supabase Auth JWTs,
+-- and the BIGINT users.id values are not auth.users UUIDs. Enabling policies
+-- based on auth.uid() now would either deny the application or leave it using a
+-- privileged role that bypasses row-level security.
+--
+-- Before implementation:
+-- 1. Link each school account to a Supabase Auth identity with a unique
+--    users.auth_user_id UUID foreign key.
+-- 2. Migrate authentication to Supabase Auth or safely propagate verified
+--    claims through a non-owner, non-BYPASSRLS database role.
+-- 3. Test every policy with anon, authenticated, teacher, student, and admin
+--    identities in a staging project. Never run this proposal directly in
+--    production.
+--
+-- Proposed ownership rules:
+-- users: a person may read their own account; admins may read school accounts.
+-- students: students may read their own record; assigned class teachers and
+--   admins may read the relevant roster.
+-- classes: students may read their own class; class teachers may read classes
+--   they lead; admins may read all classes.
+-- subjects: authenticated school users may read subject names.
+-- teacher_assignments: teachers may read their own assignments; admins may
+--   manage assignments.
+-- attendance: students may read their own records; the assigned class teacher
+--   may read/write that class; admins may read school-wide attendance.
+-- results: students may read their own results; assigned teachers may
+--   read/write results for their exact class/subject; admins may read all.
+-- audit_logs: admins only; never expose IP addresses to students or teachers.
+-- mfa_backup_codes: users may consume their own codes only through a trusted
+--   server-side function; never permit direct client reads of code hashes.
+--
+-- Illustrative future migration (still intentionally commented out):
+-- ALTER TABLE public.users
+--   ADD COLUMN auth_user_id UUID UNIQUE REFERENCES auth.users(id);
+-- ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE public.results ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+--
+-- Implement actual policies only after the identity mapping and connection
+-- role are verified. Do not grant the Flask app's database owner credentials
+-- to clients or rely on RLS policies while using a BYPASSRLS/service role.
