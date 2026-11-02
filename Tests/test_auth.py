@@ -71,6 +71,85 @@ def test_successful_login_clears_old_session_and_redirects(client, monkeypatch):
     assert audit_events == [(41, "login_success", "127.0.0.1")]
 
 
+def test_temporary_password_login_requires_password_change(client, monkeypatch):
+    user = {
+        "id": 41,
+        "full_name": "Avery Student",
+        "email": "avery@greenfield.test",
+        "password_hash": PasswordHasher().hash("temporary-password"),
+        "role": "student",
+        "is_active": True,
+        "must_change_password": True,
+    }
+    monkeypatch.setattr(auth, "get_user_by_email", lambda _email: user)
+    monkeypatch.setattr(auth, "record_audit_event", lambda *_args: None)
+
+    response = login(client, user["email"], "temporary-password")
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/change-password")
+    with client.session_transaction() as session:
+        assert session["must_change_password"] is True
+
+    change_response = client.get("/change-password")
+    assert change_response.status_code == 200
+    assert b"Update your temporary password" in change_response.data
+
+
+def test_temporary_password_cannot_access_dashboard(client):
+    with client.session_transaction() as session:
+        session["user_id"] = 41
+        session["role"] = "student"
+        session["must_change_password"] = True
+
+    response = client.get("/student")
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/change-password")
+
+
+def test_password_change_updates_hash_and_clears_requirement(client, monkeypatch):
+    current_password = "temporary-password"
+    new_password = "a-new-secure-password"
+    saved = []
+    monkeypatch.setattr(
+        auth,
+        "get_user_auth_data",
+        lambda user_id: {
+            "id": user_id,
+            "password_hash": PasswordHasher().hash(current_password),
+            "is_active": True,
+        },
+    )
+    monkeypatch.setattr(
+        auth,
+        "change_user_password",
+        lambda *args: saved.append(args) or True,
+    )
+    token = csrf_token(client)
+    with client.session_transaction() as session:
+        session["user_id"] = 41
+        session["role"] = "student"
+        session["must_change_password"] = True
+
+    response = client.post(
+        "/change-password",
+        data={
+            "csrf_token": token,
+            "current_password": current_password,
+            "new_password": new_password,
+            "confirm_password": new_password,
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/dashboard")
+    assert saved[0][0] == 41
+    assert PasswordHasher().verify(saved[0][1], new_password)
+    with client.session_transaction() as session:
+        assert session["must_change_password"] is False
+
+
 def test_wrong_password_uses_generic_failure_message(client, monkeypatch):
     user = {
         "id": 41,
@@ -138,7 +217,7 @@ def test_inactive_account_uses_generic_failure_message(client, monkeypatch):
     assert audit_events == [(41, "login_failure", "127.0.0.1")]
 
 
-def test_admin_route_allows_admin(client):
+def test_admin_route_allows_admin(client, admin_dashboard):
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"

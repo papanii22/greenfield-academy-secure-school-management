@@ -1,6 +1,9 @@
 (() => {
   const progress = document.querySelector(".top-progress");
   const loader = document.querySelector(".branded-loader");
+  const confirmDialog = document.querySelector("[data-confirm-dialog]");
+  const confirmMessage = confirmDialog?.querySelector("[data-confirm-message]");
+  let pendingForm = null;
   let navigating = false;
   const supportsPageTransitions =
     typeof CSS !== "undefined" &&
@@ -37,9 +40,26 @@
   document.addEventListener("submit", (event) => {
     const form = event.target;
     if (!(form instanceof HTMLFormElement)) return;
+    if (form.dataset.confirm && form.dataset.confirmed !== "true") {
+      event.preventDefault();
+      if (!confirmDialog || typeof confirmDialog.showModal !== "function") {
+        if (window.confirm(form.dataset.confirm)) {
+          form.dataset.confirmed = "true";
+          form.requestSubmit();
+        }
+        return;
+      }
+      pendingForm = form;
+      if (confirmMessage) confirmMessage.textContent = form.dataset.confirm;
+      confirmDialog.showModal();
+      return;
+    }
+    delete form.dataset.confirmed;
     startProgress();
     form.setAttribute("aria-busy", "true");
-    const submitter = event.submitter;
+    const submitter = event.submitter instanceof HTMLButtonElement
+      ? event.submitter
+      : form.querySelector('button[type="submit"]');
     if (!(submitter instanceof HTMLButtonElement)) return;
     submitter.disabled = true;
     submitter.classList.add("is-submitting");
@@ -47,6 +67,21 @@
     spinner.className = "button-spinner";
     spinner.setAttribute("aria-hidden", "true");
     submitter.append(spinner);
+  });
+
+  confirmDialog?.querySelectorAll("[data-confirm-cancel]").forEach((button) => {
+    button.addEventListener("click", () => confirmDialog.close());
+  });
+  confirmDialog?.querySelector("[data-confirm-accept]")?.addEventListener("click", () => {
+    if (!pendingForm) return;
+    const form = pendingForm;
+    pendingForm = null;
+    form.dataset.confirmed = "true";
+    confirmDialog.close();
+    form.requestSubmit();
+  });
+  confirmDialog?.addEventListener("close", () => {
+    pendingForm = null;
   });
 
   window.addEventListener("pageshow", () => {

@@ -8,6 +8,7 @@ from psycopg import errors
 from Routes.admin import admin_bp
 from Routes.auth import auth_bp
 from Routes.main import main_bp
+from Routes.teacher import teacher_bp
 from config import Config
 from database.db import connect_database, record_audit_event
 
@@ -23,6 +24,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(teacher_bp)
 
     @app.before_request
     def create_csp_nonce() -> None:
@@ -75,6 +77,14 @@ def create_app(test_config: dict | None = None) -> Flask:
             title="Page not found",
             message="The page you requested could not be found.",
         ), 404
+
+    @app.errorhandler(400)
+    def bad_request(_error: Exception) -> tuple[str, int]:
+        return render_template(
+            "errors/error.html",
+            title="Invalid request",
+            message="The request contains invalid information. Review your input and try again.",
+        ), 400
 
     @app.errorhandler(500)
     def internal_error(_error: Exception) -> tuple[str, int]:

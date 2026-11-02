@@ -45,6 +45,21 @@
     link.addEventListener("click", closeMenu);
   });
 
+  const accountRole = document.querySelector("#account-role");
+  function updateAccountFields() {
+    const role = accountRole?.value;
+    const studentFields = document.querySelector("[data-student-field]");
+    const teacherFields = document.querySelector("[data-teacher-field]");
+    if (studentFields) studentFields.hidden = role !== "student";
+    if (teacherFields) teacherFields.hidden = role !== "teacher";
+  }
+  accountRole?.addEventListener("change", updateAccountFields);
+  updateAccountFields();
+
+  document.querySelectorAll("select[data-auto-submit]").forEach((select) => {
+    select.addEventListener("change", () => select.form?.requestSubmit());
+  });
+
   document.querySelectorAll("[data-password-toggle]").forEach((button) => {
     button.addEventListener("click", () => {
       const input = button.closest(".password-control")?.querySelector("input");

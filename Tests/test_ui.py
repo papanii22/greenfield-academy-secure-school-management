@@ -106,7 +106,7 @@ def test_login_forms_use_post_and_csrf(client):
     assert 'autocomplete="current-password"' in page
 
 
-def test_dashboard_consumes_one_time_login_loader_flag(client):
+def test_dashboard_consumes_one_time_login_loader_flag(client, admin_dashboard):
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
@@ -121,7 +121,7 @@ def test_dashboard_consumes_one_time_login_loader_flag(client):
         assert "show_branded_loader" not in session
 
 
-def test_authenticated_shell_has_theme_and_user_menu_controls(client):
+def test_authenticated_shell_has_theme_and_user_menu_controls(client, admin_dashboard):
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"

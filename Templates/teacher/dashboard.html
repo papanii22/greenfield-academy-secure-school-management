@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Teacher dashboard | Greenfield Academy{% endblock %}
+{% block page_title %}Teacher dashboard{% endblock %}
+
+{% block content %}
+  <div class="section-heading dashboard-title-row">
+    <div><p class="eyebrow">Teaching workspace</p><h2>Your classes</h2></div>
+    <form class="term-filter" method="get" action="{{ url_for('teacher.index') }}">
+      <label for="teacher-term">Academic term</label>
+      <select class="form-control" id="teacher-term" name="term" data-auto-submit>
+        {% for term_option in (1, 2, 3) %}
+          <option value="{{ term_option }}" {% if dashboard.term == term_option %}selected{% endif %}>Term {{ term_option }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% if dashboard.classes %}
+    <section class="class-grid" aria-label="Your classes">
+      {% for school_class in dashboard.classes %}
+        <article class="class-card glass-card">
+          <div class="section-heading">
+            <div><p class="eyebrow">Class teacher</p><h3>{{ school_class.name }}</h3></div>
+            {{ icon("graduation-cap", "chart-heading-icon") }}
+          </div>
+          <div class="class-actions">
+            <a class="button button-secondary button-small" href="{{ url_for('teacher.attendance', class_id=school_class.id) }}">
+              {{ icon("calendar-check") }} Mark attendance
+            </a>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Subject</th><th>Class average</th><th>Results</th></tr></thead>
+              <tbody>
+                {% for subject in school_class.subjects %}
+                  <tr>
+                    <td>{{ subject.subject_name }}</td>
+                    <td>{% if subject.average is not none %}{{ "%.1f"|format(subject.average) }}%{% else %}—{% endif %}</td>
+                    <td><a href="{{ url_for('teacher.results', class_id=school_class.id, subject_id=subject.subject_id, term=dashboard.term) }}">Enter / edit</a></td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="3">No subjects are assigned for this class.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+  {% else %}
+    <div class="empty-state glass-card">{{ icon("graduation-cap") }}<p>No classes are currently assigned to you.</p></div>
+  {% endif %}
+
+  <section class="chart-grid" aria-label="Teacher attendance information">
+    <article class="chart-card glass-card">
+      <div class="section-heading"><div><p class="eyebrow">Last 30 days</p><h2>Attendance trend</h2></div>{{ icon("activity", "chart-heading-icon") }}</div>
+      <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"line","labels":dashboard.attendance_trend|map(attribute="label")|list,"datasets":[{"label":"Attendance rate (%)","data":dashboard.attendance_trend|map(attribute="rate")|list}],"max":100}|tojson }}' role="img" aria-label="Attendance trend in your classes over the last 30 days"></canvas></div>
+      <details class="chart-data">
+        <summary>View attendance chart data</summary>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Attendance rate</th></tr></thead>
+          <tbody>{% for point in dashboard.attendance_trend %}<tr><td>{{ point.label }}</td><td>{{ "%.1f"|format(point.rate) }}%</td></tr>{% else %}<tr><td colspan="2">No attendance records yet.</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </details>
+    </article>
+    <article class="chart-card glass-card">
+      <div class="section-heading"><div><p class="eyebrow">Teaching resources</p><h2>Classroom actions</h2></div>{{ icon("clipboard-list", "chart-heading-icon") }}</div>
+      <div class="empty-state">
+        {{ icon("info") }}
+        <p>Attendance and results can only be changed for your assigned classes and subjects.</p>
+      </div>
+    </article>
+  </section>
+{% endblock %}

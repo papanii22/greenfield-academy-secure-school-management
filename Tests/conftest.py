@@ -21,3 +21,24 @@ def app():
 @pytest.fixture
 def client(app):
     return app.test_client()
+
+
+@pytest.fixture
+def admin_dashboard(monkeypatch):
+    dashboard = {
+        "term": 1,
+        "total_students": 0,
+        "total_teachers": 0,
+        "attendance_rate": 0,
+        "school_average": None,
+        "attendance_trend": [],
+        "subject_averages": [],
+        "grade_counts": {grade: 0 for grade in "ABCDF"},
+        "recent_activity": [],
+    }
+
+    def get_dashboard(term):
+        return {**dashboard, "term": term}
+
+    monkeypatch.setattr("Routes.admin.school.get_admin_dashboard", get_dashboard)
+    return dashboard

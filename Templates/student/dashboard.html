@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Student dashboard | Greenfield Academy{% endblock %}
+{% block page_title %}Student dashboard{% endblock %}
+
+{% block content %}
+  <div class="section-heading dashboard-title-row">
+    <div>
+      <p class="eyebrow">{{ dashboard.student.class_name }} · {{ dashboard.student.student_number }}</p>
+      <h2>Welcome, {{ dashboard.student.full_name }}</h2>
+    </div>
+    <form class="term-filter" method="get" action="{{ url_for('main.student_dashboard') }}">
+      <label for="student-term">Academic term</label>
+      <select class="form-control" id="student-term" name="term" data-auto-submit>
+        {% for term_option in (1, 2, 3) %}
+          <option value="{{ term_option }}" {% if dashboard.term == term_option %}selected{% endif %}>Term {{ term_option }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <section class="stat-grid" aria-label="Your attendance summary">
+    <article class="stat-card glass-card">
+      <span class="stat-label">Attendance rate</span>
+      <strong class="stat-value">{{ "%.1f"|format(dashboard.attendance_percentage) }}%</strong>
+      {{ icon("calendar-check", "stat-icon") }}
+    </article>
+    <article class="stat-card glass-card">
+      <span class="stat-label">Present days</span>
+      <strong class="stat-value">{{ dashboard.attendance_counts.present }}</strong>
+      {{ icon("check", "stat-icon") }}
+    </article>
+    <article class="stat-card glass-card">
+      <span class="stat-label">Late days</span>
+      <strong class="stat-value">{{ dashboard.attendance_counts.late }}</strong>
+      {{ icon("activity", "stat-icon") }}
+    </article>
+    <article class="stat-card glass-card">
+      <span class="stat-label">Absent days</span>
+      <strong class="stat-value">{{ dashboard.attendance_counts.absent }}</strong>
+      {{ icon("alert-triangle", "stat-icon") }}
+    </article>
+  </section>
+
+  <section class="chart-grid" aria-label="Your academic charts">
+    <article class="chart-card glass-card">
+      <div class="section-heading"><div><p class="eyebrow">All recorded school days</p><h2>Attendance summary</h2></div>{{ icon("calendar-check", "chart-heading-icon") }}</div>
+      <p class="chart-summary">Your attendance rate is {{ "%.1f"|format(dashboard.attendance_percentage) }}% across {{ dashboard.attendance_counts.present + dashboard.attendance_counts.late + dashboard.attendance_counts.absent }} recorded days.</p>
+      <div class="chart-canvas-wrap chart-canvas-small"><canvas data-chart='{{ charts.attendance|tojson }}' role="img" aria-label="Your present, late, and absent attendance counts"></canvas></div>
+      <details class="chart-data">
+        <summary>View attendance chart data</summary>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Status</th><th>Days</th></tr></thead>
+          <tbody><tr><td>Present</td><td>{{ dashboard.attendance_counts.present }}</td></tr><tr><td>Late</td><td>{{ dashboard.attendance_counts.late }}</td></tr><tr><td>Absent</td><td>{{ dashboard.attendance_counts.absent }}</td></tr></tbody>
+        </table></div>
+      </details>
+    </article>
+    <article class="chart-card glass-card">
+      <div class="section-heading"><div><p class="eyebrow">Term {{ dashboard.term }}</p><h2>Scores by subject</h2></div>{{ icon("bar-chart", "chart-heading-icon") }}</div>
+      {% if dashboard.results %}
+        <p class="chart-summary">The pass mark is 50%. Grades are calculated from each score.</p>
+        <div class="chart-canvas-wrap"><canvas data-chart='{{ charts.scores|tojson }}' role="img" aria-label="Your subject scores and the 50 percent pass mark"></canvas></div>
+      {% else %}
+        <div class="empty-state">{{ icon("clipboard-list") }}<p>No results have been entered for this term.</p></div>
+      {% endif %}
+      <details class="chart-data">
+        <summary>View subject score data</summary>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Subject</th><th>Score</th><th>Grade</th></tr></thead>
+          <tbody>{% for result in dashboard.results %}
+            <tr><td>{{ result.subject_name }}</td><td>{{ "%.2f"|format(result.score) }}%</td><td><span class="badge grade-badge grade-{{ result.grade|lower }}">{{ result.grade }}</span></td></tr>
+          {% else %}<tr><td colspan="3">No results have been entered for this term.</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </details>
+    </article>
+    <article class="chart-card glass-card">
+      <div class="section-heading"><div><p class="eyebrow">Academic progress</p><h2>Term average trend</h2></div>{{ icon("activity", "chart-heading-icon") }}</div>
+      {% if dashboard.term_averages %}
+        <div class="chart-canvas-wrap chart-canvas-small"><canvas data-chart='{{ charts.averages|tojson }}' role="img" aria-label="Your average score trend by term"></canvas></div>
+      {% else %}
+        <div class="empty-state">{{ icon("bar-chart") }}<p>Term averages will appear after results are entered.</p></div>
+      {% endif %}
+      <details class="chart-data">
+        <summary>View term average data</summary>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Term</th><th>Average</th></tr></thead>
+          <tbody>{% for item in dashboard.term_averages %}<tr><td>Term {{ item.term }}</td><td>{{ "%.2f"|format(item.average) }}%</td></tr>{% else %}<tr><td colspan="2">No term averages yet.</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </details>
+    </article>
+  </section>
+
+  <section class="panel glass-card" aria-labelledby="recent-attendance-title">
+    <div class="section-heading"><div><p class="eyebrow">Latest records</p><h2 id="recent-attendance-title">Recent attendance</h2></div>{{ icon("calendar-check", "chart-heading-icon") }}</div>
+    {% if dashboard.recent_attendance %}
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Status</th></tr></thead>
+        <tbody>{% for record in dashboard.recent_attendance %}
+          <tr><td>{{ record.attendance_date.strftime("%Y-%m-%d") }}</td>
+            <td><span class="badge {% if record.status == 'present' %}badge-success{% elif record.status == 'late' %}badge-warning{% else %}badge-danger{% endif %}">{{ record.status|title }}</span></td>
+          </tr>
+        {% endfor %}</tbody>
+      </table></div>
+    {% else %}
+      <div class="empty-state">{{ icon("calendar-check") }}<p>No attendance records have been entered yet.</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}User management | Greenfield Academy{% endblock %}
+{% block page_title %}User management{% endblock %}
+
+{% block content %}
+  <div class="section-heading dashboard-title-row">
+    <div><p class="eyebrow">Administration</p><h2>School accounts</h2></div>
+    <a class="button button-primary" href="{{ url_for('admin.create_user') }}">{{ icon("user-plus") }} Create account</a>
+  </div>
+  <section class="panel glass-card">
+    <form class="filter-form" method="get" action="{{ url_for('admin.users') }}">
+      <div class="form-field filter-search">
+        <label for="user-search">Search accounts</label>
+        <input class="form-control" id="user-search" name="q" value="{{ search }}" maxlength="100" placeholder="Name or email">
+      </div>
+      <div class="form-field">
+        <label for="user-role">Account type</label>
+        <select class="form-control" id="user-role" name="role">
+          <option value="">All roles</option>
+          {% for role_option in ("admin", "teacher", "student") %}
+            <option value="{{ role_option }}" {% if role == role_option %}selected{% endif %}>{{ role_option|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="button button-secondary" type="submit">{{ icon("search") }} Filter</button>
+    </form>
+
+    {% if result.users %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Class / student no.</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for user in result.users %}
+              <tr>
+                <td>{{ user.full_name }}</td>
+                <td>{{ user.email }}</td>
+                <td><span class="badge badge-role">{{ user.role|title }}</span></td>
+                <td>{% if user.student_number %}{{ user.class_name }} · {{ user.student_number }}{% else %}—{% endif %}</td>
+                <td><span class="badge {% if user.is_active %}badge-success{% else %}badge-danger{% endif %}">{{ "Active" if user.is_active else "Inactive" }}</span></td>
+                <td class="table-actions">
+                  <a class="button button-ghost button-small" href="{{ url_for('admin.edit_user', user_id=user.id) }}">Edit</a>
+                  {% if user.id != session.get("user_id") %}
+                    <form method="post" action="{{ url_for('admin.set_user_status', user_id=user.id, action='deactivate' if user.is_active else 'activate') }}" data-confirm="{{ 'Deactivate' if user.is_active else 'Reactivate' }} this account?">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="button {% if user.is_active %}button-danger{% else %}button-secondary{% endif %} button-small" type="submit">
+                        {{ "Deactivate" if user.is_active else "Reactivate" }}
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">{{ icon("users") }}<p>No accounts matched this filter.</p></div>
+    {% endif %}
+
+    {% if page_count > 1 %}
+      <nav class="pagination" aria-label="User list pages">
+        {% if result.page > 1 %}
+          <a class="button button-secondary button-small" href="{{ url_for('admin.users', q=search, role=role, page=result.page - 1) }}">Previous</a>
+        {% endif %}
+        <span>Page {{ result.page }} of {{ page_count }}</span>
+        {% if result.page < page_count %}
+          <a class="button button-secondary button-small" href="{{ url_for('admin.users', q=search, role=role, page=result.page + 1) }}">Next</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Account created | Greenfield Academy{% endblock %}
+{% block page_title %}Account created{% endblock %}
+
+{% block content %}
+  <section class="form-panel glass-card">
+    <div class="section-heading">
+      <div><p class="eyebrow">One-time credential</p><h2>Account created</h2></div>
+      {{ icon("check", "success-mark") }}
+    </div>
+    <p>{{ full_name }} ({{ email }}) has been added as a {{ role }}.</p>
+    <p class="muted-text">Give this temporary password to the account holder through a secure channel. It will not be shown again, and the account must change it at first sign-in.</p>
+    <div class="temporary-password" aria-label="Temporary password">{{ temporary_password }}</div>
+    <a class="button button-primary" href="{{ url_for('admin.users') }}">Return to user management</a>
+  </section>
+{% endblock %}

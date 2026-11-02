@@ -20,13 +20,55 @@ def get_user_by_email(email: str) -> dict[str, Any] | None:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, full_name, email, password_hash, role, is_active
+                SELECT id, full_name, email, password_hash, role, is_active,
+                       must_change_password
                 FROM users
                 WHERE email = %s
                 """,
                 (email,),
             )
             return cursor.fetchone()
+
+
+def get_user_auth_data(user_id: int) -> dict[str, Any] | None:
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id, password_hash, role, is_active
+                FROM users
+                WHERE id = %s
+                """,
+                (user_id,),
+            )
+            return cursor.fetchone()
+
+
+def change_user_password(
+    user_id: int,
+    password_hash: str,
+    ip_address: str | None,
+) -> bool:
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE users
+                SET password_hash = %s, must_change_password = FALSE
+                WHERE id = %s AND is_active
+                RETURNING id
+                """,
+                (password_hash, user_id),
+            )
+            if cursor.fetchone() is None:
+                return False
+            record_audit_event(
+                user_id,
+                "password_changed",
+                ip_address,
+                connection=connection,
+            )
+    return True
 
 
 def record_audit_event(

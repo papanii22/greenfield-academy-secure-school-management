@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}{{ "Edit user" if editing else "Create user" }} | Greenfield Academy{% endblock %}
+{% block page_title %}{{ "Edit user" if editing else "Create user" }}{% endblock %}
+
+{% block content %}
+  <section class="form-panel glass-card">
+    <div class="section-heading">
+      <div><p class="eyebrow">User management</p><h2>{{ "Update account details" if editing else "Add a school account" }}</h2></div>
+      <a class="button button-ghost" href="{{ url_for('admin.users') }}">Back to users</a>
+    </div>
+    <form method="post"
+          action="{{ url_for('admin.edit_user', user_id=user.id) if editing else url_for('admin.create_user') }}"
+          data-submit-loading>
+      {{ form.csrf_token }}
+      <div class="form-field">
+        {{ form.full_name.label }}
+        {{ form.full_name(class_="form-control", maxlength="120", required=true, autocomplete="name") }}
+        {% for error in form.full_name.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+      <div class="form-field">
+        {{ form.email.label }}
+        {{ form.email(class_="form-control", maxlength="254", required=true, autocomplete="email") }}
+        {% for error in form.email.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+      {% if editing %}
+        <p class="muted-text">Account type: <span class="badge badge-role">{{ user.role|title }}</span></p>
+      {% else %}
+        <div class="form-field">
+          {{ form.role.label }}
+          {{ form.role(class_="form-control", id="account-role") }}
+          {% for error in form.role.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field">
+          {{ form.class_id.label }}
+          {{ form.class_id(class_="form-control", required=true) }}
+          {% for error in form.class_id.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field" data-student-field>
+          {{ form.student_number.label }}
+          {{ form.student_number(class_="form-control", maxlength="20", placeholder="GA-2026-001") }}
+          {% for error in form.student_number.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="form-field" data-teacher-field>
+          {{ form.subject_ids.label }}
+          {{ form.subject_ids(class_="form-control", size="5") }}
+          <small class="muted-text">Choose two or three subjects for the selected class.</small>
+          {% for error in form.subject_ids.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        {% if not options.classes %}
+          <div class="toast toast-warning" role="status">No classes exist yet. Classes will be available after the demo data is set up.</div>
+        {% endif %}
+        {% if not options.subjects %}
+          <div class="toast toast-warning" role="status">No subjects exist yet. Subjects will be available after the demo data is set up.</div>
+        {% endif %}
+      {% endif %}
+      <div class="form-actions">
+        <button class="button button-primary" type="submit">{{ icon("check") }} {{ "Save changes" if editing else "Create account" }}</button>
+        <a class="button button-secondary" href="{{ url_for('admin.users') }}">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

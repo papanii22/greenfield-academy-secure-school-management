@@ -1,6 +1,8 @@
-from flask import Blueprint, redirect, render_template, session, url_for
+from flask import Blueprint, redirect, render_template, request, session, url_for
 
-from Routes.auth import login_required
+from Routes.auth import login_required, role_required
+from Routes.validation import parse_term
+from database import school
 
 
 main_bp = Blueprint("main", __name__)
@@ -18,7 +20,7 @@ def index():
 def dashboard():
     role_endpoints = {
         "admin": "admin.index",
-        "teacher": "main.teacher_dashboard",
+        "teacher": "teacher.index",
         "student": "main.student_dashboard",
     }
     endpoint = role_endpoints.get(session.get("role"))
@@ -28,25 +30,64 @@ def dashboard():
     return redirect(url_for(endpoint))
 
 
-@main_bp.get("/teacher")
-@login_required
-def teacher_dashboard():
-    if session.get("role") != "teacher":
-        return render_template(
-            "errors/error.html",
-            title="Access denied",
-            message="You do not have permission to view this page.",
-        ), 403
-    return render_template("dashboard.html", role_label="Teacher")
-
-
 @main_bp.get("/student")
-@login_required
+@role_required("student")
 def student_dashboard():
-    if session.get("role") != "student":
+    term = parse_term(request.args.get("term"))
+    dashboard = school.get_student_dashboard(session["user_id"], term)
+    if dashboard is None:
         return render_template(
             "errors/error.html",
-            title="Access denied",
-            message="You do not have permission to view this page.",
-        ), 403
-    return render_template("dashboard.html", role_label="Student")
+            title="Student record unavailable",
+            message="Your student record could not be found. Contact a school administrator.",
+        ), 404
+    charts = {
+        "attendance": {
+            "type": "doughnut",
+            "labels": ["Present", "Late", "Absent"],
+            "datasets": [
+                {
+                    "label": "Attendance days",
+                    "data": [
+                        dashboard["attendance_counts"]["present"],
+                        dashboard["attendance_counts"]["late"],
+                        dashboard["attendance_counts"]["absent"],
+                    ],
+                }
+            ],
+        },
+        "scores": {
+            "type": "bar",
+            "labels": [result["subject_name"] for result in dashboard["results"]],
+            "datasets": [
+                {
+                    "label": "Score (%)",
+                    "data": [result["score"] for result in dashboard["results"]],
+                },
+                {
+                    "label": "Pass mark (%)",
+                    "data": [50 for _result in dashboard["results"]],
+                    "type": "line",
+                },
+            ],
+            "max": 100,
+        },
+        "averages": {
+            "type": "line",
+            "labels": [f"Term {item['term']}" for item in dashboard["term_averages"]],
+            "datasets": [
+                {
+                    "label": "Average score (%)",
+                    "data": [item["average"] for item in dashboard["term_averages"]],
+                }
+            ],
+            "max": 100,
+        },
+    }
+    return render_template(
+        "student/dashboard.html",
+        dashboard=dashboard,
+        charts=charts,
+        role_label="Student",
+        with_charts=True,
+    )

@@ -1,0 +1,110 @@
+(() => {
+  if (typeof Chart === "undefined") {
+    console.error("The local Chart.js asset did not load.");
+    return;
+  }
+
+  const charts = [];
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function themeColors() {
+    const styles = getComputedStyle(document.documentElement);
+    return {
+      text: styles.getPropertyValue("--text").trim(),
+      muted: styles.getPropertyValue("--muted").trim(),
+      primary: styles.getPropertyValue("--primary").trim(),
+      success: styles.getPropertyValue("--success").trim(),
+      warning: styles.getPropertyValue("--warning").trim(),
+      danger: styles.getPropertyValue("--danger").trim(),
+      info: styles.getPropertyValue("--info").trim(),
+      grid: styles.getPropertyValue("--surface-border").trim(),
+    };
+  }
+
+  function createChart(canvas, colors) {
+    const chartData = JSON.parse(canvas.dataset.chart);
+    const palette = [
+      colors.primary,
+      colors.info,
+      colors.success,
+      colors.warning,
+      colors.danger,
+    ];
+    const datasets = chartData.datasets.map((dataset, index) => {
+      const color = palette[index % palette.length];
+      return {
+        ...dataset,
+        borderColor: dataset.borderColor || color,
+        backgroundColor:
+          (chartData.type === "doughnut"
+            ? [colors.success, colors.primary, colors.info, colors.warning, colors.danger]
+            : `${color}66`),
+        borderWidth: chartData.type === "doughnut" ? 2 : 2,
+        borderRadius: chartData.type === "bar" ? 6 : undefined,
+        tension: chartData.type === "line" ? 0.32 : undefined,
+        pointRadius: chartData.type === "line" ? 2 : undefined,
+        pointHoverRadius: chartData.type === "line" ? 4 : undefined,
+      };
+    });
+
+    return new Chart(canvas, {
+      type: chartData.type,
+      data: {
+        labels: chartData.labels,
+        datasets,
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: reducedMotion ? 0 : 450 },
+        plugins: {
+          legend: {
+            display: chartData.type === "doughnut" || datasets.length > 1,
+            labels: { color: colors.text, usePointStyle: true, padding: 18 },
+          },
+          tooltip: { enabled: true },
+        },
+        scales:
+          chartData.type === "doughnut"
+            ? {}
+            : {
+                x: {
+                  ticks: { color: colors.muted },
+                  grid: { color: colors.grid },
+                },
+                y: {
+                  beginAtZero: true,
+                  max: chartData.max,
+                  ticks: { color: colors.muted },
+                  grid: { color: colors.grid },
+                },
+              },
+      },
+    });
+  }
+
+  function initializeCharts() {
+    const colors = themeColors();
+    Chart.defaults.color = colors.text;
+    document.querySelectorAll("canvas[data-chart]").forEach((canvas) => {
+      charts.push(createChart(canvas, colors));
+    });
+  }
+
+  initializeCharts();
+
+  document.addEventListener("greenfield:theme-change", () => {
+    const colors = themeColors();
+    Chart.defaults.color = colors.text;
+    charts.forEach((chart) => {
+      chart.options.plugins.legend.labels.color = colors.text;
+      if (chart.options.scales.x) {
+        chart.options.scales.x.ticks.color = colors.muted;
+        chart.options.scales.x.grid.color = colors.grid;
+        chart.options.scales.y.ticks.color = colors.muted;
+        chart.options.scales.y.grid.color = colors.grid;
+      }
+      chart.update("none");
+    });
+  });
+})();

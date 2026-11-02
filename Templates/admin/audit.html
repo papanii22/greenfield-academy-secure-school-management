@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Audit activity | Greenfield Academy{% endblock %}
+{% block page_title %}Audit activity{% endblock %}
+
+{% block content %}
+  <div class="section-heading dashboard-title-row">
+    <div><p class="eyebrow">Security records</p><h2>Audit log</h2></div>
+    <span class="badge badge-info">{{ result.total }} records</span>
+  </div>
+  <section class="panel glass-card">
+    <form class="filter-form audit-filters" method="get" action="{{ url_for('admin.audit') }}">
+      <div class="form-field">
+        <label for="audit-user">Account</label>
+        <select class="form-control" id="audit-user" name="user_id">
+          <option value="">All accounts</option>
+          {% for user in result.users %}
+            <option value="{{ user.id }}" {% if filters.user_id == user.id|string %}selected{% endif %}>{{ user.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="audit-action">Action contains</label>
+        <input class="form-control" id="audit-action" name="action" value="{{ filters.action }}" maxlength="120">
+      </div>
+      <div class="form-field">
+        <label for="audit-start">From</label>
+        <input class="form-control" id="audit-start" type="date" name="start_date" value="{{ filters.start_date }}">
+      </div>
+      <div class="form-field">
+        <label for="audit-end">Through</label>
+        <input class="form-control" id="audit-end" type="date" name="end_date" value="{{ filters.end_date }}">
+      </div>
+      <button class="button button-secondary" type="submit">{{ icon("search") }} Filter</button>
+    </form>
+    {% if result.logs %}
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Time</th><th>Account</th><th>Action</th><th>IP address</th></tr></thead>
+        <tbody>{% for event in result.logs %}
+          <tr>
+            <td>{{ event.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+            <td>{{ event.actor }}</td><td>{{ event.action }}</td><td>{{ event.ip_address or "—" }}</td>
+          </tr>
+        {% endfor %}</tbody>
+      </table></div>
+    {% else %}
+      <div class="empty-state">{{ icon("activity") }}<p>No audit records match the selected filters.</p></div>
+    {% endif %}
+    {% if page_count > 1 %}
+      <nav class="pagination" aria-label="Audit log pages">
+        {% if result.page > 1 %}
+          <a class="button button-secondary button-small" href="{{ url_for('admin.audit', user_id=filters.user_id, action=filters.action, start_date=filters.start_date, end_date=filters.end_date, page=result.page - 1) }}">Previous</a>
+        {% endif %}
+        <span>Page {{ result.page }} of {{ page_count }}</span>
+        {% if result.page < page_count %}
+          <a class="button button-secondary button-small" href="{{ url_for('admin.audit', user_id=filters.user_id, action=filters.action, start_date=filters.start_date, end_date=filters.end_date, page=result.page + 1) }}">Next</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  </section>
+{% endblock %}

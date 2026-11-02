@@ -29,12 +29,24 @@ def _boolean_setting(name: str, default: bool) -> bool:
     raise RuntimeError(f"{name} must be true or false.")
 
 
+def _term_setting() -> int:
+    value = os.getenv("CURRENT_TERM", "1").strip()
+    try:
+        term = int(value)
+    except ValueError:
+        raise RuntimeError("CURRENT_TERM must be 1, 2, or 3.") from None
+    if term not in (1, 2, 3):
+        raise RuntimeError("CURRENT_TERM must be 1, 2, or 3.")
+    return term
+
+
 class Config:
     SECRET_KEY = _required_setting("SECRET_KEY")
     DATABASE_URL = _required_setting("DATABASE_URL")
     JWT_SECRET = _required_setting("JWT_SECRET")
     FLASK_DEBUG = _boolean_setting("FLASK_DEBUG", False)
     SESSION_COOKIE_SECURE = _boolean_setting("SESSION_COOKIE_SECURE", False)
+    CURRENT_TERM = _term_setting()
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

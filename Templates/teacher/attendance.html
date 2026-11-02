@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Mark attendance | Greenfield Academy{% endblock %}
+{% block page_title %}Mark attendance{% endblock %}
+
+{% block content %}
+  <section class="panel glass-card">
+    <div class="section-heading">
+      <div><p class="eyebrow">Teacher workspace</p><h2>Class attendance</h2></div>
+      <a class="button button-ghost" href="{{ url_for('teacher.index') }}">Back to dashboard</a>
+    </div>
+    <form class="date-filter" method="get" action="{{ url_for('teacher.attendance', class_id=class_id) }}">
+      <div class="form-field">
+        {{ form.attendance_date.label }}
+        {{ form.attendance_date(class_="form-control", required=true) }}
+        {% for error in form.attendance_date.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+      <button class="button button-secondary" type="submit">{{ icon("search") }} View date</button>
+    </form>
+    {% if roster %}
+      <form method="post" action="{{ url_for('teacher.attendance', class_id=class_id) }}" data-submit-loading>
+        {{ form.csrf_token }}
+        <input type="hidden" name="attendance_date" value="{{ form.attendance_date.data.isoformat() if form.attendance_date.data else '' }}">
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Student</th><th>Student number</th><th>Attendance status</th></tr></thead>
+          <tbody>{% for student in roster %}
+            <tr>
+              <td>{{ student.full_name }}</td>
+              <td>{{ student.student_number }}</td>
+              <td>
+                <label class="visually-hidden" for="attendance-{{ student.id }}">Status for {{ student.full_name }}</label>
+                <select class="form-control status-select" id="attendance-{{ student.id }}" name="attendance_{{ student.id }}" required>
+                  {% for status in ("present", "absent", "late") %}
+                    <option value="{{ status }}" {% if student.status == status %}selected{% elif not student.status and status == "present" %}selected{% endif %}>{{ status|title }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+            </tr>
+          {% endfor %}</tbody>
+        </table></div>
+        <div class="form-actions"><button class="button button-primary" type="submit">{{ icon("check") }} Save attendance</button></div>
+      </form>
+    {% else %}
+      <div class="empty-state">{{ icon("users") }}<p>No students are enrolled in this class.</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

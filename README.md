@@ -43,8 +43,13 @@ flask --app app create-admin
 
 Authentication uses Argon2 password hashes, parameterized PostgreSQL queries,
 CSRF-protected POST forms, session clearing on successful login, and audit
-events for successful and failed logins, logout, and administrator creation.
+events for successful and failed logins, logout, password changes, and
+administrator creation. New accounts receive a one-time temporary password and
+must change it before accessing their dashboard.
 
 The interface uses local CSS and JavaScript assets only. Chart.js 4.6.1 is
 vendored under `Static/vendor/` with its MIT license; it is not loaded from a
 third-party CDN.
+
+The dashboard default term is controlled by the optional `CURRENT_TERM`
+setting (`1`, `2`, or `3`); term filters remain available in each dashboard.

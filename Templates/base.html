@@ -26,6 +26,10 @@
     <script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/loader.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+    {% if with_charts %}
+      <script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}" defer></script>
+      <script src="{{ url_for('static', filename='js/charts.js') }}" defer></script>
+    {% endif %}
   </head>
   <body class="{% if session.get('user_id') %}app-body{% else %}login-body{% endif %}"
         data-show-loader="{{ 'true' if show_branded_loader else 'false' }}">
@@ -53,9 +57,17 @@
                  href="{{ url_for('admin.index') }}" data-nav-link>
                 {{ icon("dashboard") }}<span>Dashboard</span>
               </a>
+              <a class="nav-link {% if request.path.startswith('/admin/users') %}is-active{% endif %}"
+                 href="{{ url_for('admin.users') }}" data-nav-link>
+                {{ icon("users") }}<span>User management</span>
+              </a>
+              <a class="nav-link {% if request.path.startswith('/admin/audit') %}is-active{% endif %}"
+                 href="{{ url_for('admin.audit') }}" data-nav-link>
+                {{ icon("activity") }}<span>Audit activity</span>
+              </a>
             {% elif session.get("role") == "teacher" %}
               <a class="nav-link {% if request.path == '/teacher' %}is-active{% endif %}"
-                 href="{{ url_for('main.teacher_dashboard') }}" data-nav-link>
+                 href="{{ url_for('teacher.index') }}" data-nav-link>
                 {{ icon("dashboard") }}<span>Dashboard</span>
               </a>
             {% else %}
@@ -109,6 +121,8 @@
                      role="menu" hidden data-user-menu>
                   <strong>{{ session.get("full_name") }}</strong>
                   <span>{{ session.get("role", "")|title }}</span>
+                  <a class="button button-ghost" href="{{ url_for('auth.change_password') }}"
+                     role="menuitem">Change password</a>
                   <form action="{{ url_for('auth.logout') }}" method="post">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="button button-ghost" type="submit" role="menuitem">{{ icon("log-out") }} Sign out</button>
@@ -142,5 +156,20 @@
         <footer class="login-footer">Greenfield Academy · Demo system, fictional data.</footer>
       </main>
     {% endif %}
+    <dialog class="modal confirm-dialog" aria-labelledby="confirm-dialog-title"
+            aria-describedby="confirm-dialog-message" data-confirm-dialog>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="confirm-dialog-title">Confirm action</h2>
+          <button class="icon-button" type="button" aria-label="Close confirmation"
+                  data-confirm-cancel>{{ icon("x") }}</button>
+        </div>
+        <p id="confirm-dialog-message" data-confirm-message></p>
+        <div class="modal-footer">
+          <button class="button button-secondary" type="button" data-confirm-cancel>Cancel</button>
+          <button class="button button-danger" type="button" data-confirm-accept>Continue</button>
+        </div>
+      </div>
+    </dialog>
   </body>
 </html>
