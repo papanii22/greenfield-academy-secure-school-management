@@ -15,6 +15,15 @@
          alt="Authenticator setup QR code">
     <p class="mfa-manual-label">Or enter this setup key manually:</p>
     <code class="mfa-secret">{{ secret }}</code>
+    <p class="login-footnote">
+      If this setup key was exposed or you cannot get a valid code, generate a fresh one.
+    </p>
+    <form method="post" action="{{ url_for('auth.reset_mfa_setup') }}">
+      {{ form.csrf_token }}
+      <button class="button button-secondary" type="submit">
+        Generate a new setup key
+      </button>
+    </form>
     <form method="post" action="{{ url_for('auth.mfa_setup') }}" data-submit-loading>
       {{ form.csrf_token }}
       <div class="form-field">

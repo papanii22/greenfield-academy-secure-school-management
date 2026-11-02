@@ -26,6 +26,31 @@ flask --app app run
 The login screen is available at `http://127.0.0.1:5000/login`. The app uses
 PostgreSQL and requires a configured `.env` file.
 
+## Deploy to Render
+
+The repository includes `render.yaml` for a free Render demo web service in
+the Frankfurt region. Free services can sleep when idle and cold-start on the
+next request; use this tier only with fictional/demo data, not real student
+records. Push the project to a private GitHub repository, then create a
+Blueprint in Render connected to that repository. Enter the current
+`SECRET_KEY` from `.env`, a newly generated
+`JWT_SECRET`, and the rotated Supabase `DATABASE_URL` as secret environment
+variables in the Render dashboard. Use the same `SECRET_KEY` that encrypted
+existing MFA data; if it was changed after enrollment, MFA resets are required.
+Never commit `.env` or paste secret values into chat.
+
+The service uses Gunicorn, HTTPS-only session cookies, and one trusted proxy
+hop for client IP handling. Its `/healthz` route supports Render health checks.
+Do not change the `SECRET_KEY` after deployment: MFA secrets are encrypted
+using it. If you already changed that key, incomplete MFA enrollment can be
+restarted from the setup page; already-enabled MFA accounts need a careful
+administrative reset before they can authenticate again.
+
+The Blueprint uses an in-memory rate-limit store and one worker for the initial
+single-instance deployment. Before adding workers or scaling to multiple
+instances, provision shared Redis-compatible storage and set
+`RATELIMIT_STORAGE_URI` to its private internal URL in Render.
+
 ## Create the first administrator
 
 Run this in the project root. The password prompt is hidden and requires
@@ -34,6 +59,9 @@ confirmation; passwords must be at least 12 characters.
 ```powershell
 flask --app app create-admin
 ```
+
+On Render, open the service Shell and run the same command there to create the
+initial administrator against the hosted database.
 
 ## Run tests
 
@@ -55,7 +83,9 @@ time-based verification code. Ten one-time recovery codes are shown once after
 enrollment; store them securely. The authenticator secret is encrypted in the
 database, and recovery codes are stored as password hashes. Login is not
 complete until MFA succeeds. Accounts with temporary passwords must still
-change the password before accessing school pages.
+change the password before accessing school pages. While initial setup is
+pending, the setup page can generate a fresh authenticator key if the current
+one was exposed or cannot be verified; this does not reset already-enabled MFA.
 
 The login, MFA, password-change, and API-token forms are rate limited. The
 default `RATELIMIT_STORAGE_URI=memory://` is suitable for local development

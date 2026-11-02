@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: greenfield-academy
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 app:app
+    healthCheckPath: /healthz
+    envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+      - key: RATELIMIT_STORAGE_URI
+        value: memory://
+      - key: RATELIMIT_ENABLED
+        value: "true"

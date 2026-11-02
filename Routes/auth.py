@@ -38,6 +38,7 @@ from database.db import (
     get_user_by_email,
     register_failed_login,
     record_audit_event,
+    reset_pending_mfa_secret,
     save_pending_mfa_secret,
 )
 from extensions import limiter
@@ -360,6 +361,38 @@ def mfa_setup() -> Any:
         )
     )
     return _no_store(response)
+
+
+@auth_bp.post("/mfa/setup/reset")
+@limiter.limit("3 per hour")
+def reset_mfa_setup() -> Any:
+    user = _pending_mfa_user("setup")
+    if user is None:
+        return redirect(url_for("auth.login"))
+    if user["mfa_enabled"]:
+        session["mfa_pending_mode"] = "verify"
+        return redirect(url_for("auth.mfa_verify"))
+
+    if not reset_pending_mfa_secret(user["id"]):
+        latest_user = get_user_auth_data(user["id"])
+        if (
+            latest_user
+            and latest_user["is_active"]
+            and latest_user.get("mfa_enabled")
+            and latest_user.get("mfa_secret")
+        ):
+            session["mfa_pending_mode"] = "verify"
+            return redirect(url_for("auth.mfa_verify"))
+        flash("The setup key could not be reset. Please try again.", "error")
+        return redirect(url_for("auth.mfa_setup"))
+
+    record_audit_event(
+        user["id"],
+        "mfa_setup_reset",
+        request.remote_addr,
+    )
+    flash("A new authenticator setup key has been generated.", "success")
+    return redirect(url_for("auth.mfa_setup"))
 
 
 @auth_bp.route("/mfa/verify", methods=["GET", "POST"])

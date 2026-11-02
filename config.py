@@ -46,6 +46,7 @@ class Config:
     JWT_SECRET = _required_setting("JWT_SECRET")
     FLASK_DEBUG = _boolean_setting("FLASK_DEBUG", False)
     SESSION_COOKIE_SECURE = _boolean_setting("SESSION_COOKIE_SECURE", False)
+    TRUST_PROXY_HEADERS = _boolean_setting("TRUST_PROXY_HEADERS", False)
     CURRENT_TERM = _term_setting()
     RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://").strip()
     RATELIMIT_ENABLED = _boolean_setting("RATELIMIT_ENABLED", True)

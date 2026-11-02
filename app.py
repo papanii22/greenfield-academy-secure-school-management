@@ -1,9 +1,10 @@
 import click
 import secrets
 from argon2 import PasswordHasher
-from flask import Flask, g, render_template, session
+from flask import Flask, g, jsonify, render_template, session
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from psycopg import errors
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from Routes.admin import admin_bp
 from Routes.api import api_bp
@@ -23,6 +24,8 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config.from_object(Config)
     if test_config:
         app.config.update(test_config)
+    if app.config.get("TRUST_PROXY_HEADERS"):
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
     if app.config.get("TESTING") and not (
         test_config and "RATELIMIT_ENABLED" in test_config
     ):
@@ -39,6 +42,10 @@ def create_app(test_config: dict | None = None) -> Flask:
         g.csp_nonce = secrets.token_urlsafe(18)
 
     csrf.init_app(app)
+
+    @app.get("/healthz")
+    def health_check():
+        return jsonify({"status": "ok"})
 
     @app.context_processor
     def template_context() -> dict[str, str | bool]:

@@ -102,6 +102,62 @@ def test_mfa_enrollment_encrypts_secret_and_shows_backup_codes_once(
     assert dashboard_response.headers["Location"].endswith("/change-password")
 
 
+def test_pending_mfa_setup_can_generate_a_fresh_key(client, monkeypatch):
+    user = {
+        "id": 41,
+        "full_name": "Avery Student",
+        "email": "avery@greenfield.test",
+        "role": "student",
+        "is_active": True,
+        "mfa_secret": None,
+        "mfa_enabled": False,
+        "is_locked": False,
+    }
+    events = []
+    monkeypatch.setattr(
+        auth,
+        "get_user_auth_data",
+        lambda _user_id: user.copy(),
+    )
+
+    def save_secret(_user_id, encrypted_secret):
+        user["mfa_secret"] = encrypted_secret
+        return True
+
+    def reset_secret(_user_id):
+        user["mfa_secret"] = None
+        return True
+
+    monkeypatch.setattr(auth, "save_pending_mfa_secret", save_secret)
+    monkeypatch.setattr(auth, "reset_pending_mfa_secret", reset_secret)
+    monkeypatch.setattr(
+        auth,
+        "record_audit_event",
+        lambda *args: events.append(args),
+    )
+    pending_session(client, 41, "setup")
+
+    first_setup = client.get("/mfa/setup")
+    assert first_setup.status_code == 200
+    old_secret = decrypt_mfa_secret(user["mfa_secret"])
+    token = csrf_token(client, "/mfa/setup")
+
+    reset_response = client.post(
+        "/mfa/setup/reset",
+        data={"csrf_token": token},
+    )
+
+    assert reset_response.status_code == 302
+    assert reset_response.headers["Location"].endswith("/mfa/setup")
+    assert user["mfa_secret"] is None
+    assert events == [(41, "mfa_setup_reset", "127.0.0.1")]
+
+    new_setup = client.get("/mfa/setup")
+    assert new_setup.status_code == 200
+    new_secret = decrypt_mfa_secret(user["mfa_secret"])
+    assert new_secret != old_secret
+
+
 def test_backup_code_login_is_normalized_and_completes_mfa(client, monkeypatch):
     secret = pyotp.random_base32()
     user = {

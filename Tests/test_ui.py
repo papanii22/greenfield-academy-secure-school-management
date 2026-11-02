@@ -1,6 +1,10 @@
 import re
 from pathlib import Path
 
+from flask import request
+
+from app import create_app
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -104,6 +108,33 @@ def test_login_forms_use_post_and_csrf(client):
     assert 'name="csrf_token"' in page
     assert 'data-password-toggle' in page
     assert 'autocomplete="current-password"' in page
+
+
+def test_health_check_is_available_for_deployment_monitoring(client):
+    response = client.get("/healthz")
+
+    assert response.status_code == 200
+    assert response.json == {"status": "ok"}
+
+
+def test_proxy_headers_are_trusted_only_when_enabled():
+    app = create_app(
+        {
+            "TESTING": True,
+            "TRUST_PROXY_HEADERS": True,
+        }
+    )
+
+    @app.get("/test-proxy-ip")
+    def proxy_ip():
+        return {"ip": request.remote_addr}
+
+    response = app.test_client().get(
+        "/test-proxy-ip",
+        headers={"X-Forwarded-For": "198.51.100.10"},
+    )
+
+    assert response.json == {"ip": "198.51.100.10"}
 
 
 def test_dashboard_consumes_one_time_login_loader_flag(client, admin_dashboard):

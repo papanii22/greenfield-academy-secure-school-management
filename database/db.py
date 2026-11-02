@@ -115,6 +115,22 @@ def save_pending_mfa_secret(user_id: int, encrypted_secret: str) -> bool:
             return cursor.fetchone() is not None
 
 
+def reset_pending_mfa_secret(user_id: int) -> bool:
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE users
+                SET mfa_secret = NULL
+                WHERE id = %s AND is_active AND NOT mfa_enabled
+                  AND mfa_secret IS NOT NULL
+                RETURNING id
+                """,
+                (user_id,),
+            )
+            return cursor.fetchone() is not None
+
+
 def enable_user_mfa(
     user_id: int,
     backup_code_hashes: list[str],
