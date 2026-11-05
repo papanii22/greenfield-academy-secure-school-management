@@ -13,7 +13,7 @@ BEGIN
             ADD CONSTRAINT users_auth_version_nonnegative
             CHECK (auth_version >= 0);
     END IF;
-END
+END;
 $$;
 
 ALTER TABLE audit_logs
