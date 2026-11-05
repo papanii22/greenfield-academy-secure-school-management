@@ -17,6 +17,11 @@ def index():
     return redirect(url_for("auth.login"))
 
 
+@main_bp.get("/curriculum")
+def curriculum():
+    return render_template("curriculum.html")
+
+
 @main_bp.get("/dashboard")
 @login_required
 def dashboard():

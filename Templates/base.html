@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark light">
     <meta name="theme-color" content="#0b1417">
+    {% block meta_description %}{% endblock %}
     <title>{% block title %}Greenfield Academy{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
@@ -76,6 +77,10 @@
                 {{ icon("dashboard") }}<span>Dashboard</span>
               </a>
             {% endif %}
+            <a class="nav-link {% if request.path == '/curriculum' %}is-active{% endif %}"
+               href="{{ url_for('main.curriculum') }}" data-nav-link>
+              {{ icon("graduation-cap") }}<span>Our Curriculum</span>
+            </a>
           </nav>
           <div class="sidebar-bottom">
             <div class="user-card">
@@ -157,7 +162,11 @@
         </div>
       </div>
     {% else %}
-        <footer class="login-footer">Greenfield Academy · Demo system, fictional data.</footer>
+        <footer class="login-footer">
+          <a href="{{ url_for('main.curriculum') }}">Our Curriculum</a>
+          <span aria-hidden="true">·</span>
+          Greenfield Academy · Demo system, fictional data.
+        </footer>
       </main>
     {% endif %}
     <dialog class="modal confirm-dialog" aria-labelledby="confirm-dialog-title"

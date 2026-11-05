@@ -1,4 +1,5 @@
 import re
+from html.parser import HTMLParser
 from pathlib import Path
 
 from flask import request
@@ -7,6 +8,30 @@ from app import create_app
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class ExternalAssetParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.external_assets = []
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == "script":
+            asset_url = attributes.get("src")
+        elif tag == "link":
+            relations = attributes.get("rel", "").split()
+            is_stylesheet_or_font = (
+                "stylesheet" in relations
+                or "font" in relations
+                or attributes.get("as") == "font"
+            )
+            asset_url = attributes.get("href") if is_stylesheet_or_font else None
+        else:
+            asset_url = None
+
+        if asset_url and asset_url.startswith(("http://", "https://")):
+            self.external_assets.append(asset_url)
 
 
 def contrast_ratio(foreground: str, background: str) -> float:
@@ -104,6 +129,7 @@ def test_login_forms_use_post_and_csrf(client):
     page = response.get_data(as_text=True)
 
     assert response.status_code == 200
+    assert 'href="/curriculum"' in page
     assert 'method="post"' in page
     assert 'name="csrf_token"' in page
     assert 'data-password-toggle' in page
@@ -115,6 +141,37 @@ def test_health_check_is_available_for_deployment_monitoring(client):
 
     assert response.status_code == 200
     assert response.json == {"status": "ok"}
+
+
+def test_curriculum_is_public_and_contains_all_stages(client):
+    response = client.get("/curriculum")
+    page = response.get_data(as_text=True)
+    stages = (
+        "Early Years Foundation Stage",
+        "Key Stage 1",
+        "Key Stage 2",
+        "Key Stage 3",
+        "Key Stage 4",
+        "Post-16",
+    )
+
+    assert response.status_code == 200
+    assert "Our Curriculum" in page
+    assert (
+        '<meta name="description" content="Learn about the British curriculum at '
+        'Greenfield Academy, from Early Years to IGCSE, in Accra, Ghana.">'
+    ) in page
+    for stage in stages:
+        assert stage in page
+
+
+def test_curriculum_has_no_external_scripts_stylesheets_or_fonts(client):
+    response = client.get("/curriculum")
+    parser = ExternalAssetParser()
+    parser.feed(response.get_data(as_text=True))
+
+    assert response.status_code == 200
+    assert parser.external_assets == []
 
 
 def test_proxy_headers_are_trusted_only_when_enabled():
@@ -166,5 +223,6 @@ def test_authenticated_shell_has_theme_and_user_menu_controls(client, admin_dash
     assert response.status_code == 200
     assert 'data-theme-toggle' in page
     assert 'data-user-menu-toggle' in page
+    assert 'href="/curriculum"' in page
     assert 'role="menu"' in page
     assert 'name="csrf_token"' in page
