@@ -48,12 +48,6 @@
           <small class="muted-text">Choose two or three subjects for the selected class.</small>
           {% for error in form.subject_ids.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
         </div>
-        {% if not options.classes %}
-          <div class="toast toast-warning" role="status">No classes exist yet. Classes will be available after the demo data is set up.</div>
-        {% endif %}
-        {% if not options.subjects %}
-          <div class="toast toast-warning" role="status">No subjects exist yet. Subjects will be available after the demo data is set up.</div>
-        {% endif %}
       {% endif %}
       <div class="form-actions">
         <button class="button button-primary" type="submit">{{ icon("check") }} {{ "Save changes" if editing else "Create account" }}</button>

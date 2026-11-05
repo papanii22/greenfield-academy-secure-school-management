@@ -18,6 +18,51 @@ from extensions import limiter
 
 csrf = CSRFProtect()
 
+CURRICULUM_SUBJECTS = (
+    "English",
+    "English Language",
+    "English Literature",
+    "Mathematics",
+    "Science",
+    "Biology",
+    "Chemistry",
+    "Physics",
+    "Computing",
+    "ICT",
+    "Computer Science",
+    "Art and Design",
+    "Design and Technology",
+    "Geography",
+    "History",
+    "Music",
+    "Physical Education",
+    "PSHE",
+    "Religious Education",
+    "French",
+    "Spanish",
+    "Business Studies",
+    "Economics",
+    "Accounting",
+    "Ghanaian Language",
+)
+CURRICULUM_CLASSES = (
+    "Nursery",
+    "Reception",
+    "Year 1",
+    "Year 2",
+    "Year 3",
+    "Year 4",
+    "Year 5",
+    "Year 6",
+    "Year 7",
+    "Year 8",
+    "Year 9",
+    "Year 10",
+    "Year 11",
+    "Year 12",
+    "Year 13",
+)
+
 
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(
@@ -171,6 +216,99 @@ def create_app(test_config: dict | None = None) -> Flask:
             raise click.ClickException("An account with that email already exists.") from error
 
         click.echo("Administrator account created.")
+
+    @app.cli.command("seed-curriculum")
+    def seed_curriculum() -> None:
+        """Add missing curriculum classes and subjects to PostgreSQL."""
+        click.echo(
+            "This command inserts missing curriculum classes and subjects into "
+            "the configured database. New classes are temporarily assigned to "
+            "an active administrator because the schema requires a class teacher. "
+            "It does not create users or teacher-subject assignments."
+        )
+        if not click.confirm("Continue?", default=False):
+            click.echo("Curriculum seeding cancelled.")
+            return
+
+        subjects_added = 0
+        subjects_already_existed = 0
+        classes_added = 0
+        classes_already_existed = 0
+        with connect_database() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id
+                    FROM users
+                    WHERE role = 'admin' AND is_active
+                    ORDER BY id
+                    """
+                )
+                admin_ids = [row["id"] for row in cursor.fetchall()]
+                if not admin_ids:
+                    raise click.ClickException(
+                        "No active administrator account is available to assign "
+                        "as the temporary class teacher."
+                    )
+                admin_id = (
+                    admin_ids[0]
+                    if len(admin_ids) == 1
+                    else int(click.prompt(
+                        "Active administrator ID for new classes",
+                        type=click.Choice([str(value) for value in admin_ids]),
+                    ))
+                )
+
+                for subject_name in CURRICULUM_SUBJECTS:
+                    cursor.execute(
+                        """
+                        INSERT INTO subjects (name)
+                        VALUES (%s)
+                        ON CONFLICT (name) DO NOTHING
+                        RETURNING id
+                        """,
+                        (subject_name,),
+                    )
+                    if cursor.fetchone() is None:
+                        subjects_already_existed += 1
+                    else:
+                        subjects_added += 1
+
+                for class_name in CURRICULUM_CLASSES:
+                    cursor.execute(
+                        """
+                        INSERT INTO classes (name, class_teacher_id)
+                        VALUES (%s, %s)
+                        ON CONFLICT (name) DO NOTHING
+                        RETURNING id
+                        """,
+                        (class_name, admin_id),
+                    )
+                    if cursor.fetchone() is None:
+                        classes_already_existed += 1
+                    else:
+                        classes_added += 1
+
+                record_audit_event(
+                    None,
+                    "curriculum_seeded",
+                    None,
+                    connection=connection,
+                )
+
+        click.echo(
+            f"Subjects: added {subjects_added}; "
+            f"{subjects_already_existed} already existed."
+        )
+        click.echo(
+            f"Classes: added {classes_added}; "
+            f"{classes_already_existed} already existed."
+        )
+        click.echo(
+            "No teacher-subject assignments were created. New classes use the "
+            "selected admin temporarily; creating teachers through the admin "
+            "form will assign their selected subjects and update the class teacher."
+        )
 
     return app
 

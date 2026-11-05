@@ -83,6 +83,26 @@ Do not run this command against a production school database unless you intend
 to create the account there. Vercel Functions do not provide a persistent
 service shell.
 
+## Seed curriculum choices
+
+Run this command from the project root after configuring `.env` for the
+intended PostgreSQL database:
+
+```powershell
+.\.venv\Scripts\flask.exe --app app seed-curriculum
+```
+
+The command asks for confirmation before connecting. It inserts only missing
+British-curriculum subjects and classes; it does not create users or overwrite
+existing records. The schema requires every class to reference a user as its
+class teacher, so new classes are temporarily assigned to an active
+administrator. Create teachers through the admin interface afterward; those
+teacher assignments update the chosen class and record only the selected two
+or three subjects. The schema's `teacher_assignments` table represents actual
+teacher workloads, so the seed command does not create curriculum-wide
+teacher-subject assignments. Review the configured database and back it up
+before running the command against data you need to preserve.
+
 ## Run tests
 
 ```powershell

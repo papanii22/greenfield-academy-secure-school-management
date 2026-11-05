@@ -3,6 +3,7 @@ from html.parser import HTMLParser
 
 from argon2 import PasswordHasher
 
+import app as app_module
 from Routes import admin
 
 
@@ -141,6 +142,75 @@ def test_admin_creates_teacher_with_two_subject_assignments(client, monkeypatch)
     assert calls[0]["class_id"] == 4
     assert calls[0]["subject_ids"] == [2, 3]
     assert b"Jordan Teacher" in response.data
+
+
+def test_create_user_form_lists_classes_and_subjects(client, monkeypatch):
+    monkeypatch.setattr(
+        admin.school,
+        "get_create_user_options",
+        lambda: {
+            "classes": [
+                {"id": 3, "name": "Nursery"},
+                {"id": 4, "name": "Year 1"},
+            ],
+            "subjects": [
+                {"id": 2, "name": "English"},
+                {"id": 3, "name": "Mathematics"},
+            ],
+        },
+    )
+    admin_session(client)
+
+    response = client.get("/admin/users/new")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert page.index("Choose a class") < page.index("Nursery") < page.index("Year 1")
+    assert 'value="2">English</option>' in page
+    assert 'value="3">Mathematics</option>' in page
+
+
+def test_create_user_form_lists_all_curriculum_classes(client, monkeypatch):
+    classes = [
+        {"id": index, "name": name}
+        for index, name in enumerate(app_module.CURRICULUM_CLASSES, start=1)
+    ]
+    monkeypatch.setattr(
+        admin.school,
+        "get_create_user_options",
+        lambda: {"classes": classes, "subjects": []},
+    )
+    admin_session(client)
+
+    response = client.get("/admin/users/new")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    placeholder = page.index(">Choose a class</option>")
+    assert all(
+        page.index(f">{class_name}</option>") > placeholder
+        for class_name in app_module.CURRICULUM_CLASSES
+    )
+
+
+def test_create_user_form_omits_empty_class_and_subject_messages(
+    client,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        admin.school,
+        "get_create_user_options",
+        lambda: {"classes": [], "subjects": []},
+    )
+    admin_session(client)
+
+    response = client.get("/admin/users/new")
+    page = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Choose a class" in page
+    assert "No classes exist yet." not in page
+    assert "No subjects exist yet." not in page
 
 
 def test_teacher_creation_requires_two_or_three_subjects(client, monkeypatch):
