@@ -56,6 +56,7 @@ def jwt_required(required_scope: str) -> Callable[[F], F]:
                 user is None
                 or not user["is_active"]
                 or user["role"] != claims.get("role")
+                or user.get("auth_version", 0) != claims.get("ver", 0)
             ):
                 return _unauthorized()
             g.api_user = user

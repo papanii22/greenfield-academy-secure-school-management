@@ -375,6 +375,22 @@
   text-align: center;
 }
 
+.login-reset-hint {
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.72rem;
+  background: rgba(20, 184, 166, 0.08);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.login-reset-hint a {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-weight: 700;
+}
+
 .curriculum-page {
   display: grid;
   width: min(100%, 980px);

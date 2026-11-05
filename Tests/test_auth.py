@@ -3,9 +3,25 @@ from html.parser import HTMLParser
 from argon2 import PasswordHasher
 from click.testing import CliRunner
 import pyotp
+import pytest
+from psycopg import errors
 
 from Routes import auth
 from mfa_crypto import encrypt_mfa_secret
+
+
+@pytest.fixture(autouse=True)
+def isolate_login_failure_hint_storage(monkeypatch):
+    counts = {}
+    monkeypatch.setattr(auth.accounts, "clear_login_failure_hint", lambda *_args: None)
+
+    def record_failure(email, ip_address):
+        key = (email, ip_address)
+        counts[key] = counts.get(key, 0) + 1
+        return counts[key]
+
+    monkeypatch.setattr(auth.accounts, "record_login_failure_hint", record_failure)
+    return counts
 
 
 class CsrfTokenParser(HTMLParser):
@@ -92,6 +108,96 @@ def test_successful_login_clears_old_session_and_redirects(client, monkeypatch):
         assert "old_session_value" not in session
         assert session.permanent is True
     assert audit_events == [(41, "login_success", "127.0.0.1")]
+
+
+@pytest.mark.parametrize("role", ["teacher", "student"])
+def test_signup_creates_pending_teacher_or_student_request(
+    client,
+    monkeypatch,
+    role,
+):
+    submitted = []
+    monkeypatch.setattr(
+        auth.accounts,
+        "submit_signup",
+        lambda *values: submitted.append(values) or 51,
+    )
+    token = csrf_token(client, "/signup")
+    password = "a-strong-signup-password"
+
+    response = client.post(
+        "/signup",
+        data={
+            "csrf_token": token,
+            "full_name": "Avery Green",
+            "email": "Avery@Greenfield.test",
+            "role": role,
+            "password": password,
+            "confirm_password": password,
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Your request has been received. An administrator must approve your account before you can sign in." in response.data
+    assert submitted[0][0:3] == ("Avery Green", "avery@greenfield.test", role)
+    assert PasswordHasher().verify(submitted[0][3], password)
+    assert submitted[0][4] == "127.0.0.1"
+
+
+@pytest.mark.parametrize("role", ["admin", "owner", ""])
+def test_signup_rejects_roles_outside_teacher_student(client, monkeypatch, role):
+    submitted = []
+    monkeypatch.setattr(
+        auth.accounts,
+        "submit_signup",
+        lambda *values: submitted.append(values),
+    )
+    response = client.post(
+        "/signup",
+        data={
+            "csrf_token": csrf_token(client, "/signup"),
+            "full_name": "Avery Green",
+            "email": "avery@greenfield.test",
+            "role": role,
+            "password": "a-strong-signup-password",
+            "confirm_password": "a-strong-signup-password",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"An administrator must approve" not in response.data
+    assert submitted == []
+
+
+def test_duplicate_signup_has_the_same_generic_response(client, monkeypatch):
+    def duplicate_signup(*_values):
+        raise errors.UniqueViolation("duplicate")
+
+    monkeypatch.setattr(auth.accounts, "submit_signup", duplicate_signup)
+    token = csrf_token(client, "/signup")
+    response = client.post(
+        "/signup",
+        data={
+            "csrf_token": token,
+            "full_name": "Avery Green",
+            "email": "avery@greenfield.test",
+            "role": "student",
+            "password": "a-strong-signup-password",
+            "confirm_password": "a-strong-signup-password",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Your request has been received. An administrator must approve your account before you can sign in." in response.data
+
+
+def test_signup_is_public_and_login_links_to_signup(client):
+    response = client.get("/signup")
+    login_response = client.get("/login")
+
+    assert response.status_code == 200
+    assert b"Create account" in login_response.data
+    assert b'href="/signup"' in login_response.data
 
 
 def test_temporary_password_login_requires_mfa_before_password_change(client, monkeypatch):

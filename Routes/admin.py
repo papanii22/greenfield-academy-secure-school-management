@@ -28,6 +28,7 @@ from wtforms.validators import InputRequired, Length, Optional, Regexp
 
 from Routes.auth import role_required
 from Routes.validation import parse_page, parse_term
+from database import accounts
 from database import school
 from grading import grade_for
 from reporting import MAX_REPORT_ROWS, report_response
@@ -77,6 +78,22 @@ class CreateUserForm(UserFieldsForm):
     subject_ids = SelectMultipleField("Assigned subjects", choices=[])
 
 
+class SignupReviewForm(FlaskForm):
+    class_id = SelectField("Class", choices=[], validators=[InputRequired()])
+    student_number = StringField(
+        "Student number",
+        validators=[
+            Optional(),
+            Length(max=20),
+            Regexp(
+                r"^GA-2026-\d{3}$",
+                message="Use the format GA-2026-001.",
+            ),
+        ],
+    )
+    subject_ids = SelectMultipleField("Assigned subjects", choices=[])
+
+
 @admin_bp.get("")
 @role_required("admin")
 def index() -> str:
@@ -110,6 +127,134 @@ def users() -> str:
         page_count=page_count,
         role_label="Administrator",
     )
+
+
+@admin_bp.get("/pending-accounts")
+@role_required("admin")
+def pending_accounts() -> str:
+    return render_template(
+        "admin/pending_accounts.html",
+        signups=accounts.list_pending_signups(),
+        role_label="Administrator",
+    )
+
+
+@admin_bp.route("/pending-accounts/<int:user_id>", methods=["GET", "POST"])
+@role_required("admin")
+def review_signup(user_id: int) -> Any:
+    signup = accounts.get_pending_signup(user_id)
+    if signup is None:
+        abort(404)
+    options = school.get_create_user_options()
+    form = SignupReviewForm()
+    form.class_id.choices = [
+        SelectChoice("", "Choose a class"),
+        *[
+            SelectChoice(str(item["id"]), item["name"])
+            for item in options["classes"]
+        ],
+    ]
+    form.subject_ids.choices = [
+        SelectChoice(str(item["id"]), item["name"])
+        for item in options["subjects"]
+    ]
+    if form.validate_on_submit():
+        class_id = int(form.class_id.data)
+        student_number = (form.student_number.data or "").strip() or None
+        subject_ids = [int(value) for value in form.subject_ids.data]
+        if signup["role"] == "student" and student_number is None:
+            form.student_number.errors.append("Student number is required.")
+        elif signup["role"] == "teacher" and len(subject_ids) not in {2, 3}:
+            form.subject_ids.errors.append("Choose two or three subjects.")
+        else:
+            try:
+                approved = accounts.approve_signup(
+                    user_id,
+                    class_id,
+                    student_number,
+                    subject_ids,
+                    session["user_id"],
+                    request.remote_addr,
+                )
+            except errors.UniqueViolation:
+                flash("That student number is already in use.", "error")
+            except errors.ForeignKeyViolation:
+                flash("The selected class or subject is no longer available.", "error")
+            except ValueError as error:
+                flash(str(error), "error")
+            else:
+                if not approved:
+                    abort(404)
+                flash("Account request approved.", "success")
+                return redirect(url_for("admin.pending_accounts"))
+
+    return render_template(
+        "admin/signup_review.html",
+        signup=signup,
+        form=form,
+        role_label="Administrator",
+    )
+
+
+@admin_bp.post("/pending-accounts/<int:user_id>/reject")
+@role_required("admin")
+def reject_signup(user_id: int):
+    if not accounts.reject_signup(
+        user_id,
+        session["user_id"],
+        request.remote_addr,
+    ):
+        abort(404)
+    flash("Account request rejected.", "success")
+    return redirect(url_for("admin.pending_accounts"))
+
+
+@admin_bp.get("/password-reset-requests")
+@role_required("admin")
+def password_reset_requests() -> str:
+    return render_template(
+        "admin/password_reset_requests.html",
+        reset_requests=accounts.list_password_reset_requests(),
+        role_label="Administrator",
+    )
+
+
+@admin_bp.route(
+    "/users/<int:user_id>/reset-password",
+    methods=["GET", "POST"],
+)
+@role_required("admin")
+def reset_user_password(user_id: int) -> Any:
+    user = school.get_user_edit_data(user_id)
+    if user is None or user["role"] not in {"teacher", "student"} or not user["is_active"]:
+        abort(404)
+
+    if request.method == "GET":
+        return render_template(
+            "admin/password_reset_confirm.html",
+            user=user,
+            role_label="Administrator",
+        )
+
+    temporary_password = secrets.token_urlsafe(18)
+    if not accounts.reset_school_user_password(
+        user_id,
+        password_hasher.hash(temporary_password),
+        session["user_id"],
+        request.remote_addr,
+    ):
+        abort(404)
+    response = make_response(
+        render_template(
+            "admin/password_reset_complete.html",
+            user=user,
+            temporary_password=temporary_password,
+            role_label="Administrator",
+        )
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @admin_bp.route("/users/new", methods=["GET", "POST"])

@@ -47,12 +47,19 @@ def csrf_token(client):
     return parser.value
 
 
-def make_token(app, user_id=41, role="student", scope="profile:read dashboard:read"):
+def make_token(
+    app,
+    user_id=41,
+    role="student",
+    scope="profile:read dashboard:read",
+    auth_version=0,
+):
     now = datetime.now(timezone.utc)
     return jwt.encode(
         {
             "sub": str(user_id),
             "role": role,
+            "ver": auth_version,
             "scope": scope,
             "iat": now,
             "exp": now + timedelta(minutes=15),
@@ -153,6 +160,30 @@ def test_api_rejects_role_drift_and_insufficient_scope(client, monkeypatch):
     )
     assert response.status_code == 403
     assert response.json == {"error": "insufficient_scope"}
+
+
+def test_api_rejects_token_after_auth_version_changes(client, monkeypatch):
+    monkeypatch.setattr(
+        api,
+        "get_user_profile",
+        lambda user_id: {
+            "id": user_id,
+            "full_name": "Avery Student",
+            "email": "avery@greenfield.test",
+            "role": "student",
+            "is_active": True,
+            "auth_version": 2,
+        },
+    )
+    token = make_token(client.application, auth_version=1)
+
+    response = client.get(
+        "/api/v1/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 401
+    assert response.json == {"error": "invalid_or_missing_token"}
 
 
 def test_api_dashboard_uses_token_user_and_returns_json_validation_errors(

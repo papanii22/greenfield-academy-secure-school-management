@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Review account request | Greenfield Academy{% endblock %}
+{% block page_title %}Review account request{% endblock %}
+
+{% block content %}
+  <section class="form-panel glass-card">
+    <div class="section-heading">
+      <div><p class="eyebrow">Pending {{ signup.role|title }} request</p><h2>{{ signup.full_name }}</h2></div>
+      <a class="button button-ghost" href="{{ url_for('admin.pending_accounts') }}">Back to requests</a>
+    </div>
+    <p>{{ signup.email }}</p>
+    <form method="post" action="{{ url_for('admin.review_signup', user_id=signup.id) }}" data-submit-loading>
+      {{ form.csrf_token }}
+      <div class="form-field">
+        {{ form.class_id.label }}
+        {{ form.class_id(class_="form-control", required=true) }}
+        {% for error in form.class_id.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+      </div>
+      {% if signup.role == "student" %}
+        <div class="form-field">
+          {{ form.student_number.label }}
+          {{ form.student_number(class_="form-control", maxlength=20, placeholder="GA-2026-001", required=true) }}
+          {% for error in form.student_number.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+      {% else %}
+        <div class="form-field">
+          {{ form.subject_ids.label }}
+          {{ form.subject_ids(class_="form-control", size=8, required=true) }}
+          <small class="muted-text">Choose two or three subjects for the selected class.</small>
+          {% for error in form.subject_ids.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+      {% endif %}
+      <div class="form-actions">
+        <button class="button button-primary" type="submit">Approve account</button>
+        <a class="button button-secondary" href="{{ url_for('admin.pending_accounts') }}">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

@@ -174,6 +174,66 @@ def test_curriculum_has_no_external_scripts_stylesheets_or_fonts(client):
     assert parser.external_assets == []
 
 
+def test_account_lifecycle_pages_load_only_local_assets(client, monkeypatch):
+    from Routes import admin
+    from database import accounts
+
+    monkeypatch.setattr(accounts, "list_pending_signups", lambda: [])
+    monkeypatch.setattr(accounts, "list_password_reset_requests", lambda: [])
+    monkeypatch.setattr(
+        accounts,
+        "get_pending_signup",
+        lambda _user_id: {
+            "id": 41,
+            "full_name": "Avery Student",
+            "email": "avery@greenfield.test",
+            "role": "student",
+        },
+    )
+    monkeypatch.setattr(
+        admin.school,
+        "get_create_user_options",
+        lambda: {"classes": [{"id": 3, "name": "Year 1"}], "subjects": []},
+    )
+    monkeypatch.setattr(
+        admin.school,
+        "get_user_edit_data",
+        lambda _user_id: {
+            "id": 9,
+            "full_name": "Avery Student",
+            "role": "student",
+            "is_active": True,
+        },
+    )
+    monkeypatch.setattr(
+        admin.school,
+        "list_users",
+        lambda *_args: {"total": 0, "per_page": 20, "users": [], "page": 1},
+    )
+    with client.session_transaction() as session:
+        session["user_id"] = 1
+        session["role"] = "admin"
+        session["full_name"] = "Demo Administrator"
+        session["mfa_verified"] = True
+
+    paths = (
+        "/signup",
+        "/request-reset",
+        "/admin/pending-accounts",
+        "/admin/pending-accounts/41",
+        "/admin/password-reset-requests",
+        "/admin/users/9/reset-password",
+        "/admin/users",
+    )
+    for path in paths:
+        response = client.get(path)
+        parser = ExternalAssetParser()
+        parser.feed(response.get_data(as_text=True))
+
+        assert response.status_code == 200, path
+        assert parser.external_assets == [], path
+
+
 def test_proxy_headers_are_trusted_only_when_enabled():
     app = create_app(
         {

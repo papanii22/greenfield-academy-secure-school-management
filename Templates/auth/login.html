@@ -40,6 +40,15 @@
         {{ icon("chevron-right") }}
       </button>
     </form>
-    <p class="login-footnote">Authorized school accounts only</p>
+    {% if show_reset_hint %}
+      <p class="login-reset-hint">
+        Having trouble signing in? Contact your school administrator to reset your password.
+        <a href="{{ url_for('auth.request_password_reset') }}">Request a password reset</a>
+      </p>
+    {% endif %}
+    <p class="login-footnote">
+      Authorized school accounts only ·
+      <a href="{{ url_for('auth.signup') }}">Create account</a>
+    </p>
   </section>
 {% endblock %}

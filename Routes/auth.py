@@ -26,9 +26,11 @@ from flask import (
     url_for,
 )
 from flask_wtf import FlaskForm
-from wtforms import PasswordField, StringField, SubmitField
+from psycopg import errors
+from wtforms import PasswordField, SelectChoice, SelectField, StringField, SubmitField
 from wtforms.validators import EqualTo, InputRequired, Length, Regexp
 
+from database import accounts
 from database.db import (
     clear_login_failures,
     change_user_password,
@@ -72,6 +74,60 @@ class LoginForm(FlaskForm):
     submit = SubmitField("Sign in")
 
 
+class SignUpForm(FlaskForm):
+    full_name = StringField(
+        "Full name",
+        validators=[InputRequired(), Length(max=120)],
+    )
+    email = StringField(
+        "Email address",
+        validators=[
+            InputRequired(),
+            Length(max=254),
+            Regexp(
+                r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+                message="Enter a valid email address.",
+            ),
+        ],
+    )
+    role = SelectField(
+        "Account type",
+        choices=[
+            SelectChoice("teacher", "Teacher"),
+            SelectChoice("student", "Student"),
+        ],
+        validators=[InputRequired()],
+    )
+    password = PasswordField(
+        "Password",
+        validators=[InputRequired(), Length(min=12, max=256)],
+    )
+    confirm_password = PasswordField(
+        "Confirm password",
+        validators=[
+            InputRequired(),
+            Length(max=256),
+            EqualTo("password", message="The passwords do not match."),
+        ],
+    )
+    submit = SubmitField("Create account")
+
+
+class ResetRequestForm(FlaskForm):
+    email = StringField(
+        "Email address",
+        validators=[
+            InputRequired(),
+            Length(max=254),
+            Regexp(
+                r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+                message="Enter a valid email address.",
+            ),
+        ],
+    )
+    submit = SubmitField("Request password reset")
+
+
 class PasswordChangeForm(FlaskForm):
     current_password = PasswordField(
         "Current password",
@@ -110,6 +166,11 @@ def login_required(view: F) -> F:
         if "user_id" not in session or not session.get("mfa_verified"):
             session.clear()
             return redirect(url_for("auth.login"))
+        if not current_app.testing:
+            auth_version = accounts.get_auth_version(session["user_id"])
+            if auth_version is None or auth_version != session.get("auth_version", 0):
+                session.clear()
+                return redirect(url_for("auth.login"))
         if (
             session.get("must_change_password")
             and request.endpoint not in {"auth.change_password", "auth.logout"}
@@ -127,6 +188,11 @@ def role_required(*allowed_roles: str) -> Callable[[F], F]:
             if "user_id" not in session or not session.get("mfa_verified"):
                 session.clear()
                 return redirect(url_for("auth.login"))
+            if not current_app.testing:
+                auth_version = accounts.get_auth_version(session["user_id"])
+                if auth_version is None or auth_version != session.get("auth_version", 0):
+                    session.clear()
+                    return redirect(url_for("auth.login"))
             if (
                 session.get("must_change_password")
                 and request.endpoint not in {"auth.change_password", "auth.logout"}
@@ -177,6 +243,7 @@ def _establish_authenticated_session(
     session["user_id"] = user["id"]
     session["full_name"] = user["full_name"]
     session["role"] = user["role"]
+    session["auth_version"] = user.get("auth_version", 0)
     session["must_change_password"] = user.get("must_change_password", False)
     session["mfa_verified"] = True
     session["show_branded_loader"] = True
@@ -188,7 +255,13 @@ def _pending_mfa_user(mode: str) -> dict[str, Any] | None:
     if not user_id or session.get("mfa_pending_mode") != mode:
         return None
     user = get_user_auth_data(user_id)
-    if user is None or not user["is_active"] or user.get("is_locked", False):
+    if (
+        user is None
+        or not user["is_active"]
+        or user.get("is_locked", False)
+        or user.get("auth_version", 0)
+        != session.get("mfa_pending_auth_version", 0)
+    ):
         session.clear()
         return None
     return user
@@ -210,6 +283,14 @@ def _no_store(response):
     return response
 
 
+def _render_login(form: LoginForm):
+    return render_template(
+        "auth/login.html",
+        form=form,
+        show_reset_hint=session.get("login_failure_count", 0) >= 3,
+    )
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def login() -> Any:
@@ -228,6 +309,7 @@ def login() -> Any:
     form = LoginForm()
     if form.validate_on_submit():
         email = form.email.data.strip().lower()
+        ip_address = request.remote_addr or "unknown"
         user = get_user_by_email(email)
         authenticated = bool(
             user
@@ -238,8 +320,14 @@ def login() -> Any:
 
         if not authenticated:
             _record_auth_failure(user, "login_failure", request.remote_addr)
+            session["login_failure_count"] = max(
+                session.get("login_failure_count", 0) + 1,
+                accounts.record_login_failure_hint(email, ip_address),
+            )
             flash(LOGIN_FAILURE_MESSAGE, "error")
-            return render_template("auth/login.html", form=form)
+            return _render_login(form)
+        accounts.clear_login_failure_hint(email, ip_address)
+        session.pop("login_failure_count", None)
         if user.get("mfa_enabled") and not user.get("mfa_secret"):
             record_audit_event(
                 user["id"],
@@ -250,11 +338,12 @@ def login() -> Any:
                 "MFA needs administrator attention. Contact your school administrator.",
                 "error",
             )
-            return render_template("auth/login.html", form=form)
+            return _render_login(form)
 
         session.clear()
         session.permanent = True
         session["mfa_pending_user_id"] = user["id"]
+        session["mfa_pending_auth_version"] = user.get("auth_version", 0)
         session["mfa_pending_mode"] = (
             "verify" if user.get("mfa_enabled") else "setup"
         )
@@ -266,7 +355,55 @@ def login() -> Any:
         )
         return redirect(url_for(endpoint))
 
-    return render_template("auth/login.html", form=form)
+    return _render_login(form)
+
+
+@auth_bp.route("/signup", methods=["GET", "POST"])
+@limiter.limit("5 per hour")
+def signup() -> Any:
+    form = SignUpForm()
+    submitted = False
+    if form.validate_on_submit():
+        role = form.role.data
+        if role not in {"teacher", "student"}:
+            form.role.errors.append("Choose a teacher or student account.")
+        else:
+            try:
+                accounts.submit_signup(
+                    form.full_name.data.strip(),
+                    form.email.data.strip().lower(),
+                    role,
+                    password_hasher.hash(form.password.data),
+                    request.remote_addr,
+                )
+            except errors.UniqueViolation:
+                pass
+            submitted = True
+    response = make_response(
+        render_template("auth/signup.html", form=form, submitted=submitted)
+    )
+    return _no_store(response)
+
+
+@auth_bp.route("/request-reset", methods=["GET", "POST"])
+@limiter.limit("5 per hour")
+def request_password_reset() -> Any:
+    form = ResetRequestForm()
+    submitted = False
+    if form.validate_on_submit():
+        accounts.create_password_reset_request(
+            form.email.data.strip().lower(),
+            request.remote_addr,
+        )
+        submitted = True
+    response = make_response(
+        render_template(
+            "auth/request_reset.html",
+            form=form,
+            submitted=submitted,
+        )
+    )
+    return _no_store(response)
 
 
 @auth_bp.route("/mfa/setup", methods=["GET", "POST"])
@@ -496,6 +633,7 @@ def change_password() -> Any:
                 session.clear()
                 return redirect(url_for("auth.login"))
             session["must_change_password"] = False
+            session["auth_version"] = session.get("auth_version", 0) + 1
             flash("Your password has been updated.", "success")
             return redirect(url_for("main.dashboard"))
     return render_template("auth/change_password.html", form=form)
@@ -510,6 +648,7 @@ def create_api_token() -> Any:
         {
             "sub": str(session["user_id"]),
             "role": session["role"],
+            "ver": session.get("auth_version", 0),
             "scope": "profile:read dashboard:read",
             "iat": issued_at,
             "exp": issued_at + timedelta(minutes=15),

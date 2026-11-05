@@ -66,6 +66,14 @@
                  href="{{ url_for('admin.audit') }}" data-nav-link>
                 {{ icon("activity") }}<span>Audit activity</span>
               </a>
+              <a class="nav-link {% if request.path.startswith('/admin/pending-accounts') %}is-active{% endif %}"
+                 href="{{ url_for('admin.pending_accounts') }}" data-nav-link>
+                {{ icon("user-plus") }}<span>Pending accounts</span>
+              </a>
+              <a class="nav-link {% if request.path.startswith('/admin/password-reset-requests') %}is-active{% endif %}"
+                 href="{{ url_for('admin.password_reset_requests') }}" data-nav-link>
+                {{ icon("key") }}<span>Password reset requests</span>
+              </a>
             {% elif session.get("role") == "teacher" %}
               <a class="nav-link {% if request.path == '/teacher' %}is-active{% endif %}"
                  href="{{ url_for('teacher.index') }}" data-nav-link>

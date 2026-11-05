@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Request password reset | Greenfield Academy{% endblock %}
+
+{% block content %}
+  <section class="login-card glass-card" aria-labelledby="reset-request-heading">
+    <div class="login-brand-mark">{{ icon("key") }}</div>
+    <p class="eyebrow">Account support</p>
+    <h1 id="reset-request-heading">Request a password reset</h1>
+    {% if submitted %}
+      <p class="login-intro" role="status">
+        If this account exists, the administrator has been notified.
+      </p>
+      <a class="button button-secondary login-submit" href="{{ url_for('auth.login') }}">Return to sign in</a>
+    {% else %}
+      <p class="login-intro">Enter the email address associated with your school account.</p>
+      <form method="post" action="{{ url_for('auth.request_password_reset') }}" data-submit-loading>
+        {{ form.csrf_token }}
+        <div class="form-field">
+          {{ form.email.label }}
+          {{ form.email(class_="form-control", autocomplete="email", inputmode="email", maxlength=254, required=true) }}
+          {% for error in form.email.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+        </div>
+        <button class="button button-primary login-submit" type="submit">
+          <span>Request password reset</span>{{ icon("chevron-right") }}
+        </button>
+      </form>
+      <p class="login-footnote"><a href="{{ url_for('auth.login') }}">Back to sign in</a></p>
+    {% endif %}
+  </section>
+{% endblock %}

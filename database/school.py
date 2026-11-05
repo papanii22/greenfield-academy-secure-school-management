@@ -281,10 +281,27 @@ def set_user_active(
 ) -> bool:
     with connect_database() as connection:
         with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE users SET is_active = %s WHERE id = %s RETURNING id",
-                (active, user_id),
-            )
+            if active:
+                cursor.execute(
+                    """
+                    UPDATE users
+                    SET is_active = TRUE
+                    WHERE id = %s
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM signup_requests
+                          WHERE signup_requests.user_id = users.id
+                            AND signup_requests.status IN ('pending', 'rejected')
+                      )
+                    RETURNING id
+                    """,
+                    (user_id,),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE users SET is_active = FALSE WHERE id = %s RETURNING id",
+                    (user_id,),
+                )
             if cursor.fetchone() is None:
                 return False
             record_audit_event(

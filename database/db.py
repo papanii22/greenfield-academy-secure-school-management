@@ -25,6 +25,7 @@ def get_user_by_email(email: str) -> dict[str, Any] | None:
                 """
                 SELECT id, full_name, email, password_hash, role, is_active,
                        must_change_password, mfa_secret, mfa_enabled,
+                       auth_version,
                        failed_attempts, locked_until,
                        (locked_until > CURRENT_TIMESTAMP) AS is_locked
                 FROM users
@@ -42,6 +43,7 @@ def get_user_auth_data(user_id: int) -> dict[str, Any] | None:
                 """
                 SELECT id, full_name, email, password_hash, role, is_active,
                        must_change_password, mfa_secret, mfa_enabled,
+                       auth_version,
                        failed_attempts, locked_until,
                        (locked_until > CURRENT_TIMESTAMP) AS is_locked
                 FROM users
@@ -57,7 +59,7 @@ def get_user_profile(user_id: int) -> dict[str, Any] | None:
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, full_name, email, role, is_active
+                SELECT id, full_name, email, role, is_active, auth_version
                 FROM users
                 WHERE id = %s
                 """,
@@ -224,7 +226,8 @@ def change_user_password(
             cursor.execute(
                 """
                 UPDATE users
-                SET password_hash = %s, must_change_password = FALSE
+                SET password_hash = %s, must_change_password = FALSE,
+                    auth_version = auth_version + 1
                 WHERE id = %s AND is_active
                 RETURNING id
                 """,
@@ -247,13 +250,26 @@ def record_audit_event(
     ip_address: str | None,
     *,
     connection: psycopg.Connection | None = None,
+    target_user_id: int | None = None,
 ) -> None:
     if connection is not None:
-        _insert_audit_event(connection, user_id, action, ip_address)
+        _insert_audit_event(
+            connection,
+            user_id,
+            action,
+            ip_address,
+            target_user_id,
+        )
         return
 
     with connect_database() as active_connection:
-        _insert_audit_event(active_connection, user_id, action, ip_address)
+        _insert_audit_event(
+            active_connection,
+            user_id,
+            action,
+            ip_address,
+            target_user_id,
+        )
 
 
 def _insert_audit_event(
@@ -261,12 +277,13 @@ def _insert_audit_event(
     user_id: int | None,
     action: str,
     ip_address: str | None,
+    target_user_id: int | None,
 ) -> None:
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            INSERT INTO audit_logs (user_id, action, ip_address)
-            VALUES (%s, %s, %s)
+            INSERT INTO audit_logs (user_id, action, ip_address, target_user_id)
+            VALUES (%s, %s, %s, %s)
             """,
-            (user_id, action, ip_address),
+            (user_id, action, ip_address, target_user_id),
         )
