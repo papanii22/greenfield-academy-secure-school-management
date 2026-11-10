@@ -69,7 +69,7 @@ def test_login_has_nonce_protected_theme_script(client):
     assert nonce is not None
     assert f"'nonce-{nonce.group(1)}'" in policy
     assert "localStorage.getItem" in page
-    assert 'href="/Static/css/tokens.css"' in page
+    assert 'href="/Static/css/tokens.css?v=' in page
 
 
 def test_static_icons_and_theme_assets_are_served_locally(client):

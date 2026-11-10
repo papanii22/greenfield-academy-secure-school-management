@@ -10,7 +10,8 @@
   <article class="curriculum-page">
     <header class="curriculum-intro glass-card">
       <p class="eyebrow">Learning at Greenfield Academy</p>
-      <h1>Our Curriculum</h1>
+      {# The app shell already renders the page title as the h1 when signed in. #}
+      {% if session.get("user_id") %}<h2>Our Curriculum</h2>{% else %}<h1>Our Curriculum</h1>{% endif %}
       <p>
         Greenfield Academy follows the British curriculum (National Curriculum for England),
         with Cambridge IGCSE or Pearson Edexcel International GCSE at Key Stage 4.
@@ -25,7 +26,7 @@
           <span class="curriculum-stage-meta">Nursery and Reception · Ages 3–5</span>
         </summary>
         <div class="curriculum-stage-content">
-          <h2>Areas of learning</h2>
+          <h3>Areas of learning</h3>
           <ul>
             <li>Communication and Language</li>
             <li>Literacy</li>
@@ -44,7 +45,7 @@
           <span class="curriculum-stage-meta">Years 1–2 · Ages 5–7</span>
         </summary>
         <div class="curriculum-stage-content">
-          <h2>Subjects</h2>
+          <h3>Subjects</h3>
           <ul>
             <li>English</li>
             <li>Mathematics</li>
@@ -68,7 +69,7 @@
           <span class="curriculum-stage-meta">Years 3–6 · Ages 7–11</span>
         </summary>
         <div class="curriculum-stage-content">
-          <h2>Subjects</h2>
+          <h3>Subjects</h3>
           <ul>
             <li>English</li>
             <li>Mathematics</li>
@@ -93,7 +94,7 @@
           <span class="curriculum-stage-meta">Years 7–9 · Ages 11–14</span>
         </summary>
         <div class="curriculum-stage-content">
-          <h2>Subjects</h2>
+          <h3>Subjects</h3>
           <ul>
             <li>English</li>
             <li>Mathematics</li>
@@ -118,14 +119,14 @@
           <span class="curriculum-stage-meta">Years 10–11 · Ages 14–16 · IGCSE</span>
         </summary>
         <div class="curriculum-stage-content">
-          <h2>Core subjects</h2>
+          <h3>Core subjects</h3>
           <ul>
             <li>English Language</li>
             <li>English Literature</li>
             <li>Mathematics</li>
             <li>Sciences: Biology, Chemistry and Physics</li>
           </ul>
-          <h2>Options</h2>
+          <h3>Options</h3>
           <ul>
             <li>Business Studies</li>
             <li>Economics</li>
@@ -147,7 +148,7 @@
           <span class="curriculum-stage-meta">Years 12–13 · Ages 16–18 · Optional</span>
         </summary>
         <div class="curriculum-stage-content">
-          <h2>A-Levels</h2>
+          <h3>A-Levels</h3>
           <p>Students typically choose 3–4 subjects.</p>
         </div>
       </details>

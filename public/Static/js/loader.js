@@ -91,10 +91,9 @@
   });
 
   document.addEventListener("DOMContentLoaded", () => {
-    const firstPageLoad = !sessionStorage.getItem("greenfield-first-load");
-    const afterLogin = document.body.dataset.showLoader === "true";
-    sessionStorage.setItem("greenfield-first-load", "true");
-    if (!firstPageLoad && !afterLogin) return;
+    // Only the post-sign-in handoff gets the branded loader. Covering an
+    // already-rendered page on every first visit just delays the content.
+    if (document.body.dataset.showLoader !== "true") return;
     loader?.classList.add("is-visible");
     const hideLoader = () => loader?.classList.remove("is-visible");
     window.addEventListener("load", hideLoader, { once: true });

@@ -1,11 +1,22 @@
 {% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
 
 {% block title %}{{ title }} | Greenfield Academy{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
 
 {% block content %}
-  <section aria-labelledby="error-heading">
-    <h1 id="error-heading">{{ title }}</h1>
+  <section class="error-page glass-card" aria-labelledby="error-heading">
+    {% if status_code %}<span class="error-code" aria-hidden="true">{{ status_code }}</span>{% endif %}
+    {# The app shell already renders the page title as the h1 when signed in. #}
+    {% if session.get("user_id") %}
+      <h2 id="error-heading">{{ title }}</h2>
+    {% else %}
+      <p class="eyebrow">Greenfield Academy</p>
+      <h1 id="error-heading">{{ title }}</h1>
+    {% endif %}
     <p>{{ message }}</p>
-    <a href="{{ url_for('main.index') }}">Return to Greenfield Academy</a>
+    <a class="button button-primary" href="{{ url_for('main.index') }}">
+      <span>Return to Greenfield Academy</span>{{ icon("chevron-right") }}
+    </a>
   </section>
 {% endblock %}

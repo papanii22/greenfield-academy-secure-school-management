@@ -18,10 +18,13 @@
       (() => {
         const savedTheme = localStorage.getItem("greenfield-theme");
         const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        document.documentElement.dataset.theme =
+        const theme =
           savedTheme === "light" || savedTheme === "dark"
             ? savedTheme
             : (systemPrefersDark ? "dark" : "light");
+        document.documentElement.dataset.theme = theme;
+        document.querySelector('meta[name="theme-color"]')
+          ?.setAttribute("content", theme === "light" ? "#f2f8f8" : "#0b1417");
       })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
@@ -34,6 +37,7 @@
   </head>
   <body class="{% if session.get('user_id') %}app-body{% else %}login-body{% endif %}"
         data-show-loader="{{ 'true' if show_branded_loader else 'false' }}">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="top-progress" aria-hidden="true"></div>
     <div class="branded-loader" aria-hidden="true">
       <svg class="loader-logo"><use href="{{ url_for('static', filename='icons/sprite.svg') }}#logo-mark"></use></svg>
@@ -55,37 +59,45 @@
             <span class="nav-indicator" aria-hidden="true"></span>
             {% if session.get("role") == "admin" %}
               <a class="nav-link {% if request.path == '/admin' %}is-active{% endif %}"
+                 {% if request.path == '/admin' %}aria-current="page"{% endif %}
                  href="{{ url_for('admin.index') }}" data-nav-link>
                 {{ icon("dashboard") }}<span>Dashboard</span>
               </a>
               <a class="nav-link {% if request.path.startswith('/admin/users') %}is-active{% endif %}"
+                 {% if request.path.startswith('/admin/users') %}aria-current="page"{% endif %}
                  href="{{ url_for('admin.users') }}" data-nav-link>
                 {{ icon("users") }}<span>User management</span>
               </a>
               <a class="nav-link {% if request.path.startswith('/admin/audit') %}is-active{% endif %}"
+                 {% if request.path.startswith('/admin/audit') %}aria-current="page"{% endif %}
                  href="{{ url_for('admin.audit') }}" data-nav-link>
                 {{ icon("activity") }}<span>Audit activity</span>
               </a>
               <a class="nav-link {% if request.path.startswith('/admin/pending-accounts') %}is-active{% endif %}"
+                 {% if request.path.startswith('/admin/pending-accounts') %}aria-current="page"{% endif %}
                  href="{{ url_for('admin.pending_accounts') }}" data-nav-link>
                 {{ icon("user-plus") }}<span>Pending accounts</span>
               </a>
               <a class="nav-link {% if request.path.startswith('/admin/password-reset-requests') %}is-active{% endif %}"
+                 {% if request.path.startswith('/admin/password-reset-requests') %}aria-current="page"{% endif %}
                  href="{{ url_for('admin.password_reset_requests') }}" data-nav-link>
                 {{ icon("key") }}<span>Password reset requests</span>
               </a>
             {% elif session.get("role") == "teacher" %}
               <a class="nav-link {% if request.path == '/teacher' %}is-active{% endif %}"
+                 {% if request.path == '/teacher' %}aria-current="page"{% endif %}
                  href="{{ url_for('teacher.index') }}" data-nav-link>
                 {{ icon("dashboard") }}<span>Dashboard</span>
               </a>
             {% else %}
               <a class="nav-link {% if request.path == '/student' %}is-active{% endif %}"
+                 {% if request.path == '/student' %}aria-current="page"{% endif %}
                  href="{{ url_for('main.student_dashboard') }}" data-nav-link>
                 {{ icon("dashboard") }}<span>Dashboard</span>
               </a>
             {% endif %}
             <a class="nav-link {% if request.path == '/curriculum' %}is-active{% endif %}"
+               {% if request.path == '/curriculum' %}aria-current="page"{% endif %}
                href="{{ url_for('main.curriculum') }}" data-nav-link>
               {{ icon("graduation-cap") }}<span>Our Curriculum</span>
             </a>
@@ -107,7 +119,7 @@
             <p class="demo-note">Demo system, fictional data.</p>
           </div>
         </aside>
-        <button class="sidebar-scrim" type="button" aria-label="Close navigation" data-menu-close></button>
+        <button class="sidebar-scrim" type="button" aria-label="Close navigation" tabindex="-1" data-menu-close></button>
         <div class="workspace">
           <header class="topbar">
             <button class="icon-button menu-button" type="button" aria-label="Open navigation"
@@ -150,14 +162,14 @@
           </header>
           <main class="main-content" id="main-content">
     {% else %}
-      <main class="login-layout">
+      <main class="login-layout" id="main-content">
     {% endif %}
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             <div class="toast-stack{% if not session.get('user_id') %} login-toast-stack{% endif %}" aria-live="polite">
               {% for category, message in messages %}
-                <div class="toast toast-{{ category if category in ['success', 'warning', 'error', 'info'] else 'info' }}" role="status">
-                  {{ icon("alert-triangle" if category == "error" else "info") }}
+                <div class="toast toast-{{ category if category in ['success', 'warning', 'error', 'info'] else 'info' }}" role="{{ 'alert' if category == 'error' else 'status' }}">
+                  {{ icon("alert-triangle" if category in ("error", "warning") else ("check" if category == "success" else "info")) }}
                   <span>{{ message }}</span>
                 </div>
               {% endfor %}

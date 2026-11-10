@@ -1,10 +1,13 @@
 import click
+import hashlib
+import os
 import secrets
 from argon2 import PasswordHasher
-from flask import Flask, g, jsonify, render_template, session
+from flask import Flask, g, jsonify, render_template, request, session
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from psycopg import errors
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import safe_join
 
 from Routes.admin import admin_bp
 from Routes.api import api_bp
@@ -87,6 +90,26 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(api_bp)
     limiter.init_app(app)
 
+    static_versions: dict[str, tuple[int, str]] = {}
+
+    @app.url_defaults
+    def add_static_version(endpoint: str, values: dict) -> None:
+        """Fingerprint static URLs so browsers can cache them for a year."""
+        if endpoint != "static" or "v" in values:
+            return
+        filename = values.get("filename")
+        try:
+            path = safe_join(app.static_folder, filename)
+            modified = os.stat(path).st_mtime_ns
+            cached = static_versions.get(filename)
+            if cached is None or cached[0] != modified:
+                with open(path, "rb") as asset:
+                    digest = hashlib.sha256(asset.read()).hexdigest()[:10]
+                cached = static_versions[filename] = (modified, digest)
+            values["v"] = cached[1]
+        except (OSError, TypeError):
+            return
+
     @app.before_request
     def create_csp_nonce() -> None:
         g.csp_nonce = secrets.token_urlsafe(18)
@@ -117,6 +140,13 @@ def create_app(test_config: dict | None = None) -> Flask:
             "form-action 'self'; "
             "frame-ancestors 'none'"
         )
+        if (
+            request.endpoint == "static"
+            and request.args.get("v")
+            and response.status_code == 200
+        ):
+            # The URL changes whenever the file does, so it never needs revalidating.
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
     @app.errorhandler(CSRFError)
@@ -124,6 +154,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         return render_template(
             "errors/error.html",
             title="Request could not be verified",
+            status_code=400,
             message="The request could not be processed. Refresh the page and try again.",
         ), 400
 
@@ -132,6 +163,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         return render_template(
             "errors/error.html",
             title="Access denied",
+            status_code=403,
             message="You do not have permission to view this page.",
         ), 403
 
@@ -140,6 +172,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         return render_template(
             "errors/error.html",
             title="Page not found",
+            status_code=404,
             message="The page you requested could not be found.",
         ), 404
 
@@ -148,6 +181,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         return render_template(
             "errors/error.html",
             title="Invalid request",
+            status_code=400,
             message="The request contains invalid information. Review your input and try again.",
         ), 400
 
@@ -156,6 +190,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         return render_template(
             "errors/error.html",
             title="Export is too large",
+            status_code=413,
             message="This report exceeds the 5,000-row export limit. Narrow the date range or select a smaller report.",
         ), 413
 
@@ -164,6 +199,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         return render_template(
             "errors/error.html",
             title="Too many attempts",
+            status_code=429,
             message="Too many requests were received. Wait a few minutes and try again.",
         ), 429
 
@@ -172,6 +208,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         return render_template(
             "errors/error.html",
             title="Something went wrong",
+            status_code=500,
             message="The request could not be completed. Please try again later.",
         ), 500
 

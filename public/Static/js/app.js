@@ -4,16 +4,44 @@
   const userMenuToggle = document.querySelector("[data-user-menu-toggle]");
   const userMenu = document.querySelector("[data-user-menu]");
 
-  function closeMenu() {
+  const sidebar = document.querySelector("#app-sidebar");
+  const drawerQuery = window.matchMedia("(max-width: 640px)");
+
+  function closeMenu(restoreFocus = false) {
+    const wasOpen = document.body.classList.contains("menu-open");
     document.body.classList.remove("menu-open");
     menuToggle?.setAttribute("aria-expanded", "false");
+    menuToggle?.setAttribute("aria-label", "Open navigation");
+    if (wasOpen && restoreFocus) menuToggle?.focus();
   }
 
   menuToggle?.addEventListener("click", () => {
     const isOpen = document.body.classList.toggle("menu-open");
     menuToggle.setAttribute("aria-expanded", String(isOpen));
+    menuToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+    if (isOpen) {
+      (sidebar?.querySelector(".nav-link.is-active") || sidebar?.querySelector(".nav-link"))?.focus();
+    }
   });
-  menuClose?.addEventListener("click", closeMenu);
+  menuClose?.addEventListener("click", () => closeMenu(true));
+  drawerQuery.addEventListener("change", (event) => {
+    if (!event.matches) closeMenu();
+  });
+  // Keep keyboard focus inside the open drawer.
+  sidebar?.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab" || !document.body.classList.contains("menu-open")) return;
+    const focusable = [...sidebar.querySelectorAll("a[href], button:not([disabled])")];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
   function closeUserMenu(restoreFocus = false) {
     userMenu?.setAttribute("hidden", "");
     userMenuToggle?.setAttribute("aria-expanded", "false");
@@ -25,7 +53,7 @@
     userMenuToggle.setAttribute("aria-expanded", String(shouldOpen));
     if (shouldOpen) {
       userMenu?.removeAttribute("hidden");
-      userMenu?.querySelector("button")?.focus();
+      userMenu?.querySelector('[role="menuitem"]')?.focus();
     } else {
       closeUserMenu();
     }
@@ -35,14 +63,60 @@
       closeUserMenu();
     }
   });
+  userMenu?.addEventListener("keydown", (event) => {
+    const items = [...userMenu.querySelectorAll('[role="menuitem"]')];
+    const index = items.indexOf(document.activeElement);
+    let next = null;
+    if (event.key === "ArrowDown") next = items[(index + 1) % items.length];
+    else if (event.key === "ArrowUp") next = items[(index - 1 + items.length) % items.length];
+    else if (event.key === "Home") next = items[0];
+    else if (event.key === "End") next = items[items.length - 1];
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      closeMenu();
-      closeUserMenu(true);
+      closeMenu(true);
+      if (userMenuToggle?.getAttribute("aria-expanded") === "true") closeUserMenu(true);
     }
   });
   document.querySelectorAll(".side-nav [data-nav-link]").forEach((link) => {
-    link.addEventListener("click", closeMenu);
+    link.addEventListener("click", () => closeMenu());
+  });
+
+  // Tie each server-side validation message to its control for screen readers.
+  document.querySelectorAll(".form-field").forEach((field, fieldIndex) => {
+    const errors = field.querySelectorAll(".field-error");
+    const control = field.querySelector("input, select, textarea");
+    if (!errors.length || !control) return;
+    const ids = [...errors].map((error, errorIndex) => {
+      if (!error.id) error.id = "field-error-" + fieldIndex + "-" + errorIndex;
+      return error.id;
+    });
+    control.setAttribute("aria-invalid", "true");
+    control.setAttribute("aria-describedby", ids.join(" "));
+  });
+
+  // Wide tables scroll sideways on small screens; make that reachable by keyboard.
+  const tableWraps = document.querySelectorAll(".table-wrap");
+  function markScrollableTables() {
+    tableWraps.forEach((wrap) => {
+      if (wrap.scrollWidth > wrap.clientWidth + 1) {
+        wrap.setAttribute("tabindex", "0");
+        wrap.setAttribute("role", "region");
+        if (!wrap.hasAttribute("aria-label")) {
+          wrap.setAttribute("aria-label", "Scrollable table");
+        }
+      } else {
+        wrap.removeAttribute("tabindex");
+      }
+    });
+  }
+  markScrollableTables();
+  window.addEventListener("resize", markScrollableTables, { passive: true });
+  document.querySelectorAll("details").forEach((details) => {
+    details.addEventListener("toggle", markScrollableTables);
   });
 
   const accountRole = document.querySelector("#account-role");
@@ -75,7 +149,9 @@
   const activeLink = document.querySelector(".nav-link.is-active");
   const indicator = document.querySelector(".nav-indicator");
   function positionIndicator() {
-    if (!activeLink || !indicator) return;
+    if (!indicator) return;
+    indicator.hidden = !activeLink;
+    if (!activeLink) return;
     indicator.style.height = `${activeLink.offsetHeight}px`;
     indicator.style.transform = `translateY(${activeLink.offsetTop}px)`;
   }
@@ -84,6 +160,7 @@
   document.querySelectorAll(".nav-link").forEach((link) => {
     link.addEventListener("pointerenter", () => {
       if (!indicator) return;
+      indicator.hidden = false;
       indicator.style.height = `${link.offsetHeight}px`;
       indicator.style.transform = `translateY(${link.offsetTop}px)`;
     });
