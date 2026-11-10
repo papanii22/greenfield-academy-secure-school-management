@@ -1,28 +1,44 @@
-:root {
-  color-scheme: dark;
+:root,
+[data-theme="light"] {
+  color-scheme: light;
 
-  /* Colour */
-  --bg: #0b1417;
-  --surface: rgba(255, 255, 255, 0.05);
-  --surface-raised: #132226;
-  --surface-border: rgba(255, 255, 255, 0.1);
-  --text: #e6f1f2;
-  --muted: #8fa6aa;
-  --primary: #14b8a6;
-  --primary-hover: #2dd4bf;
-  --primary-soft: rgba(20, 184, 166, 0.1);
-  --primary-line: rgba(20, 184, 166, 0.34);
-  --link: #2dd4bf;
-  --on-primary: #000;
-  --on-primary-hover: #000;
-  --on-danger: #2b1010;
-  --success: #34d399;
-  --warning: #fbbf24;
-  --danger: #f87171;
-  --info: #38bdf8;
-  --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
-  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.18);
-  --focus-ring: 0 0 0 4px rgba(20, 184, 166, 0.3);
+  /* Colour: soft grey page, white cards, pastel sky / lavender / yellow accents. */
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-border: rgba(20, 24, 40, 0.08);
+  --field: #ffffff;
+  --field-border: #aab2bf;
+  --text: #1c1d21;
+  --muted: #5f6673;
+  --primary: #1e9bd1;
+  --primary-hover: #0b6f99;
+  --primary-soft: #eef8fd;
+  --primary-line: rgba(30, 155, 209, 0.45);
+  --link: #0b6f99;
+  --accent-sky: #c3ebfa;
+  --accent-lavender: #cfceff;
+  --accent-yellow: #fae27c;
+  --on-accent: #14161a;
+  --button-bg: #c3ebfa;
+  --button-bg-hover: #a5e0f7;
+  --on-primary: #14161a;
+  --on-danger: #ffffff;
+  --success: #0b6f99;
+  --warning: #8a5300;
+  --danger: #b4233a;
+  --info: #4a45b8;
+  --table-head: #edf9fd;
+  --row-hover: #f1f0ff;
+  --chart-1: #7cc9ee;
+  --chart-2: #f4cf4d;
+  --chart-3: #a8a5f5;
+  --chart-4: #f7b267;
+  --chart-5: #f28b9b;
+  /* Flat by default: only floating layers (menus, dialogs) cast a shadow. */
+  --shadow: 0 12px 32px rgba(20, 24, 40, 0.12);
+  --shadow-soft: none;
+  --focus-ring: 0 0 0 4px rgba(30, 155, 209, 0.25);
 
   /* Typography */
   --font-sans: Inter, "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui,
@@ -37,47 +53,53 @@
   --text-display: clamp(1.9rem, 1.3rem + 2.6vw, 2.75rem);
 
   /* Shape and motion */
-  --radius-sm: 0.75rem;
-  --radius-md: 1rem;
-  --radius-lg: 1.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 130ms;
   --duration-base: 220ms;
 }
 
-[data-theme="light"] {
-  color-scheme: light;
-  --bg: #f2f8f8;
-  --surface: rgba(255, 255, 255, 0.7);
-  --surface-raised: #ffffff;
-  --surface-border: rgba(15, 31, 34, 0.1);
-  --text: #0f1f22;
-  --muted: #52696d;
-  --primary: #0d9488;
-  --primary-hover: #0f766e;
-  --primary-soft: rgba(13, 148, 136, 0.1);
-  --primary-line: rgba(13, 148, 136, 0.36);
-  --link: #0f766e;
-  --on-primary: #000;
-  --on-primary-hover: #fff;
-  --on-danger: #fff;
-  --success: #059669;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --info: #0284c7;
-  --shadow: 0 24px 70px rgba(15, 31, 34, 0.12);
-  --shadow-soft: 0 10px 30px rgba(15, 31, 34, 0.08);
-  --focus-ring: 0 0 0 4px rgba(13, 148, 136, 0.22);
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14161c;
+  --surface: #1c1f27;
+  --surface-raised: #232732;
+  --surface-border: rgba(255, 255, 255, 0.09);
+  --field: #171a21;
+  --field-border: #596273;
+  --text: #eef0f4;
+  --muted: #9aa3b2;
+  --primary: #5cc6f2;
+  --primary-hover: #8fd9f8;
+  --primary-soft: rgba(92, 198, 242, 0.12);
+  --primary-line: rgba(92, 198, 242, 0.45);
+  --link: #7dd3fc;
+  --button-bg: #a5e0f7;
+  --button-bg-hover: #c3ebfa;
+  --on-danger: #2b1010;
+  --success: #7dd3fc;
+  --warning: #fcd34d;
+  --danger: #fda4af;
+  --info: #c4b5fd;
+  --table-head: rgba(125, 211, 252, 0.1);
+  --row-hover: rgba(196, 181, 253, 0.1);
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --focus-ring: 0 0 0 4px rgba(92, 198, 242, 0.3);
 }
 
 @media (prefers-contrast: more) {
-  :root {
-    --surface-border: rgba(255, 255, 255, 0.32);
-    --muted: #b7c9cc;
+  :root,
+  [data-theme="light"] {
+    --surface-border: rgba(20, 24, 40, 0.4);
+    --field-border: #5f6673;
+    --muted: #3d4350;
   }
 
-  [data-theme="light"] {
-    --surface-border: rgba(15, 31, 34, 0.4);
-    --muted: #3a4f53;
+  [data-theme="dark"] {
+    --surface-border: rgba(255, 255, 255, 0.32);
+    --field-border: #9aa3b2;
+    --muted: #c3cad6;
   }
 }

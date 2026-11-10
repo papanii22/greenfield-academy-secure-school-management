@@ -1,4 +1,5 @@
 import click
+import csv
 import hashlib
 import os
 import secrets
@@ -64,6 +65,110 @@ CURRICULUM_CLASSES = (
     "Year 11",
     "Year 12",
     "Year 13",
+)
+_EARLY_YEARS = ("Nursery", "Reception")
+_KS1 = ("Year 1", "Year 2")
+_KS2 = ("Year 3", "Year 4", "Year 5", "Year 6")
+_KS3 = ("Year 7", "Year 8", "Year 9")
+_KS4 = ("Year 10", "Year 11")
+_POST_16 = ("Year 12", "Year 13")
+# Which classes take each subject, following the stages on the curriculum page.
+SUBJECT_CLASSES = {
+    "English": _EARLY_YEARS + _KS1 + _KS2 + _KS3,
+    "English Language": _KS4,
+    "English Literature": _KS4 + _POST_16,
+    "Mathematics": _EARLY_YEARS + _KS1 + _KS2 + _KS3 + _KS4 + _POST_16,
+    "Science": _KS1 + _KS2,
+    "Biology": _KS3 + _KS4 + _POST_16,
+    "Chemistry": _KS3 + _KS4 + _POST_16,
+    "Physics": _KS3 + _KS4 + _POST_16,
+    "Computing": _KS1 + _KS2 + _KS3,
+    "ICT": _KS4,
+    "Computer Science": _KS4 + _POST_16,
+    "Art and Design": _EARLY_YEARS + _KS1 + _KS2 + _KS3 + _KS4,
+    "Design and Technology": _KS1 + _KS2 + _KS3,
+    "Geography": _KS1 + _KS2 + _KS3 + _KS4 + _POST_16,
+    "History": _KS1 + _KS2 + _KS3 + _KS4 + _POST_16,
+    "Music": _EARLY_YEARS + _KS1 + _KS2 + _KS3 + _KS4,
+    "Physical Education": _EARLY_YEARS + _KS1 + _KS2 + _KS3 + _KS4,
+    "PSHE": _EARLY_YEARS + _KS1 + _KS2 + _KS3,
+    "Religious Education": _KS1 + _KS2 + _KS3,
+    "French": _KS2 + _KS3 + _KS4,
+    "Spanish": _KS2 + _KS3 + _KS4,
+    "Business Studies": _KS4 + _POST_16,
+    "Economics": _KS4 + _POST_16,
+    "Accounting": _KS4 + _POST_16,
+    "Ghanaian Language": _KS1 + _KS2 + _KS3 + _KS4,
+}
+
+MALE_FIRST_NAMES = (
+    "Kwame", "Kofi", "Kwesi", "Yaw", "Kojo", "Kwabena", "Nii", "Ebo",
+    "Selorm", "Edem", "Mawuli",
+)
+FEMALE_FIRST_NAMES = (
+    "Ama", "Akosua", "Abena", "Adwoa", "Efua", "Esi", "Naa", "Afia", "Dzifa",
+)
+STUDENT_FIRST_NAMES = MALE_FIRST_NAMES + FEMALE_FIRST_NAMES
+MALE_ENGLISH_NAMES = (
+    "Emmanuel", "Samuel", "Daniel", "Michael", "Joseph", "David", "Benjamin",
+    "Isaac", "Stephen", "Richard", "Francis", "Prince", "Eric", "Kelvin",
+    "Bright", "Felix",
+)
+FEMALE_ENGLISH_NAMES = (
+    "Grace", "Mary", "Abigail", "Esther", "Sarah", "Deborah", "Priscilla",
+    "Gifty", "Linda", "Patience", "Mercy", "Rebecca", "Felicia", "Comfort",
+    "Vivian", "Gloria",
+)
+# Students get a 10-digit index number that starts with 10100.
+STUDENT_INDEX_FIRST = 1_010_000_000
+STUDENT_INDEX_SPAN = 100_000
+# Teachers get a 5-digit index number that starts with 10 (10000-10999).
+TEACHER_INDEX_FIRST = 10_000
+TEACHER_INDEX_SPAN = 1_000
+
+
+def name_lengths(total: int) -> list[int]:
+    """How many names each person gets: half have two, 3 in 10 have three and
+    the rest have four, in random order."""
+    three = round(total * 0.3)
+    two = round(total * 0.5)
+    lengths = [3] * three + [2] * two + [4] * (total - three - two)
+    secrets.SystemRandom().shuffle(lengths)
+    return lengths
+
+
+def compose_name(english: str, ghanaian: str, surname: str, length: int) -> str:
+    """Build a two, three or four part name from one person's name parts."""
+    if length == 2:
+        return f"{secrets.choice((english, ghanaian))} {surname}"
+    if length == 3:
+        return f"{english} {ghanaian} {surname}"
+    second_surname = secrets.choice(
+        [name for name in STUDENT_LAST_NAMES if name != surname]
+    )
+    return f"{english} {ghanaian} {second_surname} {surname}"
+
+
+def person_name(base_name: str, length: int) -> str:
+    """Turn a 'Ghanaian-first-name Surname' pair into a full name, adding an
+    English first name matched to gender where the length calls for one."""
+    ghanaian, surname = base_name.split(" ", 1)
+    english_names = (
+        FEMALE_ENGLISH_NAMES if ghanaian in FEMALE_FIRST_NAMES else MALE_ENGLISH_NAMES
+    )
+    return compose_name(secrets.choice(english_names), ghanaian, surname, length)
+
+
+def teacher_display_name(full_name: str) -> str:
+    """Prefix a teacher's name with Sir (male) or Mrs. (female)."""
+    first_name = full_name.split(" ", 1)[0]
+    female = first_name in FEMALE_FIRST_NAMES or first_name in FEMALE_ENGLISH_NAMES
+    title = "Mrs." if female else "Sir"
+    return f"{title} {full_name}"
+STUDENT_LAST_NAMES = (
+    "Mensah", "Boateng", "Owusu", "Asante", "Osei", "Appiah", "Agyeman",
+    "Addo", "Lamptey", "Quaye", "Tetteh", "Ansah", "Amoah", "Darko",
+    "Gyamfi", "Sarpong", "Ofori", "Nkansah", "Dogbe", "Agbeko",
 )
 
 
@@ -346,6 +451,271 @@ def create_app(test_config: dict | None = None) -> Flask:
             "selected admin temporarily; creating teachers through the admin "
             "form will assign their selected subjects and update the class teacher."
         )
+
+    def new_index_numbers(
+        cursor,
+        domain: str,
+        count: int,
+        first: int = 1_000_000_000,
+        span: int = 9_000_000_000,
+    ) -> list[str]:
+        """Random numbers in [first, first + span) not yet used by any student
+        or account email. The default range gives 10-digit numbers."""
+        cursor.execute("SELECT student_number FROM students")
+        taken = {row["student_number"] for row in cursor.fetchall()}
+        cursor.execute(
+            "SELECT email FROM users WHERE email LIKE %s",
+            (f"%@{domain}",),
+        )
+        taken |= {row["email"].split("@", 1)[0] for row in cursor.fetchall()}
+        free = span - sum(
+            1 for value in taken
+            if value.isdigit() and first <= int(value) < first + span
+        )
+        if free < count:
+            raise click.ClickException(
+                f"Only {free} unused index numbers are left in this range; "
+                f"{count} are needed."
+            )
+        index_numbers: list[str] = []
+        while len(index_numbers) < count:
+            candidate = str(secrets.randbelow(span) + first)
+            if candidate not in taken:
+                taken.add(candidate)
+                index_numbers.append(candidate)
+        return index_numbers
+
+    @app.cli.command("seed-teachers")
+    @click.option("--per-subject", default=2, show_default=True, type=click.IntRange(1, 10))
+    @click.option("--domain", default="gamail.edu.gh", show_default=True)
+    @click.option(
+        "--output",
+        default="teacher_accounts.csv",
+        show_default=True,
+        type=click.Path(dir_okay=False, writable=True),
+        help="CSV file that receives the one-time temporary passwords.",
+    )
+    @click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+    def seed_teachers(per_subject: int, domain: str, output: str, yes: bool) -> None:
+        """Create fictional teacher accounts, a fixed number for every subject."""
+        domain = domain.strip().lower()
+        if not domain or "@" in domain or "." not in domain:
+            raise click.ClickException("Enter a domain such as gamail.edu.gh.")
+        if os.path.exists(output):
+            raise click.ClickException(
+                f"{output} already exists. Move it or choose another --output file "
+                "so earlier temporary passwords are not overwritten."
+            )
+        click.echo(
+            f"This command creates {per_subject} teacher accounts for every subject "
+            f"in the configured database, with emails of the form "
+            f"<index number>@{domain}. Each teacher is assigned their one subject "
+            "in the classes where the curriculum teaches it. Class teachers are "
+            f"not changed. Temporary passwords are written to {output}."
+        )
+        if not yes and not click.confirm("Continue?", default=False):
+            click.echo("Teacher seeding cancelled.")
+            return
+
+        hasher = PasswordHasher()
+        random_source = secrets.SystemRandom()
+        with connect_database() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT id, name FROM subjects ORDER BY id")
+                subjects = cursor.fetchall()
+                cursor.execute("SELECT id, name FROM classes ORDER BY id")
+                classes_by_name = {row["name"]: row["id"] for row in cursor.fetchall()}
+                if not subjects or not classes_by_name:
+                    raise click.ClickException(
+                        "No subjects or classes exist yet. Run seed-curriculum first."
+                    )
+
+                index_numbers = new_index_numbers(
+                    cursor,
+                    domain,
+                    len(subjects) * per_subject,
+                    first=TEACHER_INDEX_FIRST,
+                    span=TEACHER_INDEX_SPAN,
+                )
+                names = [
+                    f"{first} {last}"
+                    for first in STUDENT_FIRST_NAMES
+                    for last in STUDENT_LAST_NAMES
+                ]
+                random_source.shuffle(names)
+                lengths = name_lengths(len(index_numbers))
+                rows = []
+                for subject in subjects:
+                    # Classes that take this subject; unknown subjects fall back to all.
+                    taught_in = [
+                        name
+                        for name in SUBJECT_CLASSES.get(subject["name"], classes_by_name)
+                        if name in classes_by_name
+                    ] or list(classes_by_name)
+                    for slot in range(per_subject):
+                        # Deal the classes out in turn, so colleagues share the year groups.
+                        own_classes = taught_in[slot::per_subject] or taught_in
+                        position = len(rows)
+                        index_number = index_numbers[position]
+                        full_name = teacher_display_name(
+                            person_name(names[position % len(names)], lengths[position])
+                        )
+                        email = f"{index_number}@{domain}"
+                        temporary_password = secrets.token_urlsafe(12)
+                        cursor.execute(
+                            """
+                            INSERT INTO users
+                                (full_name, email, password_hash, role, must_change_password)
+                            VALUES (%s, %s, %s, 'teacher', TRUE)
+                            RETURNING id
+                            """,
+                            (full_name, email, hasher.hash(temporary_password)),
+                        )
+                        user_id = cursor.fetchone()["id"]
+                        cursor.executemany(
+                            """
+                            INSERT INTO teacher_assignments (teacher_id, class_id, subject_id)
+                            VALUES (%s, %s, %s)
+                            """,
+                            [
+                                (user_id, classes_by_name[name], subject["id"])
+                                for name in own_classes
+                            ],
+                        )
+                        rows.append((
+                            index_number, full_name, email, subject["name"],
+                            "; ".join(own_classes), temporary_password,
+                        ))
+                record_audit_event(
+                    None,
+                    "teacher_accounts_seeded",
+                    None,
+                    connection=connection,
+                )
+                # Written inside the transaction: if the file cannot be saved the
+                # accounts roll back, so no account exists without a known password.
+                with open(output, "x", newline="", encoding="utf-8") as handle:
+                    writer = csv.writer(handle)
+                    writer.writerow((
+                        "index_number", "full_name", "email", "subject",
+                        "classes", "temporary_password",
+                    ))
+                    writer.writerows(rows)
+
+        click.echo(f"Created {len(rows)} teacher accounts. Credentials saved to {output}.")
+        click.echo("Keep that file private and delete it once the passwords are handed out.")
+
+    @app.cli.command("seed-students")
+    @click.option("--count", default=100, show_default=True, type=click.IntRange(1, 1000))
+    @click.option("--domain", default="gamail.edu.gh", show_default=True)
+    @click.option(
+        "--output",
+        default="student_accounts.csv",
+        show_default=True,
+        type=click.Path(dir_okay=False, writable=True),
+        help="CSV file that receives the one-time temporary passwords.",
+    )
+    @click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+    def seed_students(count: int, domain: str, output: str, yes: bool) -> None:
+        """Create fictional student accounts with 10-digit index numbers (10100xxxxx)."""
+        domain = domain.strip().lower()
+        if not domain or "@" in domain or "." not in domain:
+            raise click.ClickException("Enter a domain such as gamail.edu.gh.")
+        if os.path.exists(output):
+            raise click.ClickException(
+                f"{output} already exists. Move it or choose another --output file "
+                "so earlier temporary passwords are not overwritten."
+            )
+        click.echo(
+            f"This command creates {count} student accounts in the configured "
+            f"database with emails of the form <index number>@{domain}, spread "
+            "evenly across the existing classes. Temporary passwords are written "
+            f"to {output}; each student must change theirs at first sign-in."
+        )
+        if not yes and not click.confirm("Continue?", default=False):
+            click.echo("Student seeding cancelled.")
+            return
+
+        hasher = PasswordHasher()
+        # Unbiased shuffle, so names and classes are not tied to creation order.
+        random_source = secrets.SystemRandom()
+        with connect_database() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT c.id, c.name, COUNT(s.id) AS size
+                    FROM classes c
+                    LEFT JOIN students s ON s.class_id = c.id
+                    GROUP BY c.id, c.name
+                    ORDER BY c.id
+                    """
+                )
+                classes = cursor.fetchall()
+                if not classes:
+                    raise click.ClickException(
+                        "No classes exist yet. Run seed-curriculum first."
+                    )
+                index_numbers = new_index_numbers(
+                    cursor,
+                    domain,
+                    count,
+                    first=STUDENT_INDEX_FIRST,
+                    span=STUDENT_INDEX_SPAN,
+                )
+
+                names = [
+                    f"{first} {last}"
+                    for first in STUDENT_FIRST_NAMES
+                    for last in STUDENT_LAST_NAMES
+                ]
+                random_source.shuffle(names)
+                lengths = name_lengths(count)
+                rows = []
+                for position, index_number in enumerate(index_numbers):
+                    # Always fill the smallest class, so class sizes stay level
+                    # however many students already exist.
+                    school_class = min(classes, key=lambda item: (item["size"], item["id"]))
+                    school_class["size"] += 1
+                    full_name = person_name(names[position % len(names)], lengths[position])
+                    email = f"{index_number}@{domain}"
+                    temporary_password = secrets.token_urlsafe(12)
+                    cursor.execute(
+                        """
+                        INSERT INTO users
+                            (full_name, email, password_hash, role, must_change_password)
+                        VALUES (%s, %s, %s, 'student', TRUE)
+                        RETURNING id
+                        """,
+                        (full_name, email, hasher.hash(temporary_password)),
+                    )
+                    user_id = cursor.fetchone()["id"]
+                    cursor.execute(
+                        """
+                        INSERT INTO students (user_id, student_number, class_id)
+                        VALUES (%s, %s, %s)
+                        """,
+                        (user_id, index_number, school_class["id"]),
+                    )
+                    rows.append(
+                        (index_number, full_name, email, school_class["name"], temporary_password)
+                    )
+                record_audit_event(
+                    None,
+                    "student_accounts_seeded",
+                    None,
+                    connection=connection,
+                )
+                # Written inside the transaction: if the file cannot be saved the
+                # accounts roll back, so no account exists without a known password.
+                with open(output, "x", newline="", encoding="utf-8") as handle:
+                    writer = csv.writer(handle)
+                    writer.writerow(
+                        ("index_number", "full_name", "email", "class", "temporary_password")
+                    )
+                    writer.writerows(rows)
+
+        click.echo(f"Created {len(rows)} student accounts. Credentials saved to {output}.")
+        click.echo("Keep that file private and delete it once the passwords are handed out.")
 
     return app
 

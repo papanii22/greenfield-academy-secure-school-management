@@ -18,30 +18,26 @@
       danger: styles.getPropertyValue("--danger").trim(),
       info: styles.getPropertyValue("--info").trim(),
       grid: styles.getPropertyValue("--surface-border").trim(),
+      chart: [1, 2, 3, 4, 5].map((n) => styles.getPropertyValue(`--chart-${n}`).trim()),
     };
   }
 
   function createChart(canvas, colors) {
     const chartData = JSON.parse(canvas.dataset.chart);
-    const palette = [
-      colors.primary,
-      colors.info,
-      colors.success,
-      colors.warning,
-      colors.danger,
-    ];
+    const palette = colors.chart;
+    const isLine = chartData.type === "line";
+    const isDoughnut = chartData.type === "doughnut";
     const datasets = chartData.datasets.map((dataset, index) => {
-      const color = palette[index % palette.length];
+      // Lines lead with yellow and bars with sky, as in the dashboard design.
+      const color = palette[(index + (isLine ? 1 : 0)) % palette.length];
       return {
         ...dataset,
         borderColor: dataset.borderColor || color,
-        backgroundColor:
-          (chartData.type === "doughnut"
-            ? [colors.success, colors.primary, colors.info, colors.warning, colors.danger]
-            : `${color}66`),
-        borderWidth: chartData.type === "doughnut" ? 2 : 2,
-        borderRadius: chartData.type === "bar" ? 6 : undefined,
-        tension: chartData.type === "line" ? 0.32 : undefined,
+        backgroundColor: isDoughnut ? palette : isLine ? `${color}33` : color,
+        fill: isLine,
+        borderWidth: isLine ? 3 : 0,
+        borderRadius: chartData.type === "bar" ? 8 : undefined,
+        tension: chartData.type === "line" ? 0.4 : undefined,
         pointRadius: chartData.type === "line" ? 2 : undefined,
         pointHoverRadius: chartData.type === "line" ? 4 : undefined,
       };

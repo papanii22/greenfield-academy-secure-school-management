@@ -105,23 +105,29 @@ def test_static_icons_and_theme_assets_are_served_locally(client):
 
 def test_theme_tokens_meet_wcag_aa_text_contrast():
     tokens = (ROOT / "public" / "Static" / "css" / "tokens.css").read_text(encoding="utf-8")
-    components = (ROOT / "public" / "Static" / "css" / "components.css").read_text(encoding="utf-8")
-    expected_colors = (
-        "#0b1417", "#e6f1f2", "#8fa6aa",
-        "#f2f8f8", "#0f1f22", "#52696d",
-        "#14b8a6", "#0d9488", "#0f766e",
-    )
+    light = {"bg": "#f7f8fa", "surface": "#ffffff", "text": "#1c1d21",
+             "muted": "#5f6673", "link": "#0b6f99", "button": "#c3ebfa",
+             "on_accent": "#14161a", "lavender": "#cfceff", "yellow": "#fae27c"}
+    dark = {"bg": "#14161c", "surface": "#1c1f27", "text": "#eef0f4",
+            "muted": "#9aa3b2", "link": "#7dd3fc", "button": "#a5e0f7"}
 
-    for color in expected_colors:
-        assert color in tokens or color in components
+    for color in (*light.values(), *dark.values()):
+        assert color in tokens, color
 
-    assert contrast_ratio("#e6f1f2", "#0b1417") >= 4.5
-    assert contrast_ratio("#8fa6aa", "#0b1417") >= 4.5
-    assert contrast_ratio("#0f1f22", "#f2f8f8") >= 4.5
-    assert contrast_ratio("#52696d", "#f2f8f8") >= 4.5
-    assert contrast_ratio("#000000", "#14b8a6") >= 4.5
-    assert contrast_ratio("#000000", "#0d9488") >= 4.5
-    assert contrast_ratio("#ffffff", "#0f766e") >= 4.5
+    for theme in (light, dark):
+        for background in (theme["bg"], theme["surface"]):
+            assert contrast_ratio(theme["text"], background) >= 4.5
+            assert contrast_ratio(theme["muted"], background) >= 4.5
+            assert contrast_ratio(theme["link"], background) >= 4.5
+        assert contrast_ratio(light["on_accent"], theme["button"]) >= 4.5
+    # Stat tiles keep dark text on the pastel fills in both themes.
+    for fill in (light["lavender"], light["yellow"]):
+        assert contrast_ratio(light["on_accent"], fill) >= 4.5
+        assert contrast_ratio("#3a3f4c", fill) >= 4.5
+    # Status pill text on its own 14% tint of white.
+    for status in ("#0b6f99", "#8a5300", "#b4233a", "#4a45b8"):
+        assert status in tokens
+        assert contrast_ratio(status, "#ffffff") >= 5.5
 
 
 def test_login_forms_use_post_and_csrf(client):

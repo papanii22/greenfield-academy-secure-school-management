@@ -1,11 +1,11 @@
 {% from "partials/icons.html" import icon %}
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark light">
-    <meta name="theme-color" content="#0b1417">
+    <meta name="theme-color" content="#f7f8fa">
     {% block meta_description %}{% endblock %}
     <title>{% block title %}Greenfield Academy{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/favicon.svg') }}">
@@ -17,14 +17,11 @@
     <script nonce="{{ csp_nonce }}">
       (() => {
         const savedTheme = localStorage.getItem("greenfield-theme");
-        const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        const theme =
-          savedTheme === "light" || savedTheme === "dark"
-            ? savedTheme
-            : (systemPrefersDark ? "dark" : "light");
+        // Light is the designed default; dark applies only when chosen with the toggle.
+        const theme = savedTheme === "dark" ? "dark" : "light";
         document.documentElement.dataset.theme = theme;
         document.querySelector('meta[name="theme-color"]')
-          ?.setAttribute("content", theme === "light" ? "#f2f8f8" : "#0b1417");
+          ?.setAttribute("content", theme === "light" ? "#f7f8fa" : "#14161c");
       })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
@@ -54,9 +51,8 @@
               <small>Grow with knowledge.</small>
             </span>
           </a>
-          <div class="sidebar-heading">Workspace</div>
-          <nav class="side-nav">
-            <span class="nav-indicator" aria-hidden="true"></span>
+          <div class="sidebar-heading" id="nav-menu-heading">Menu</div>
+          <nav class="side-nav" aria-labelledby="nav-menu-heading">
             {% if session.get("role") == "admin" %}
               <a class="nav-link {% if request.path == '/admin' %}is-active{% endif %}"
                  {% if request.path == '/admin' %}aria-current="page"{% endif %}
@@ -102,20 +98,19 @@
               {{ icon("graduation-cap") }}<span>Our Curriculum</span>
             </a>
           </nav>
+          <div class="sidebar-heading" id="nav-other-heading">Other</div>
+          <nav class="side-nav" aria-labelledby="nav-other-heading">
+            <a class="nav-link {% if request.path == url_for('auth.change_password') %}is-active{% endif %}"
+               {% if request.path == url_for('auth.change_password') %}aria-current="page"{% endif %}
+               href="{{ url_for('auth.change_password') }}" data-nav-link>
+              {{ icon("lock") }}<span>Change password</span>
+            </a>
+            <form action="{{ url_for('auth.logout') }}" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="nav-link" type="submit">{{ icon("log-out") }}<span>Log out</span></button>
+            </form>
+          </nav>
           <div class="sidebar-bottom">
-            <div class="user-card">
-              <span class="avatar">{{ session.get("full_name", "U")[:1]|upper }}</span>
-              <span class="user-copy">
-                <strong>{{ session.get("full_name") }}</strong>
-                <small>{{ session.get("role", "")|title }}</small>
-              </span>
-              <form action="{{ url_for('auth.logout') }}" method="post">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="icon-button logout-button" type="submit" aria-label="Sign out" title="Sign out">
-                  {{ icon("log-out") }}
-                </button>
-              </form>
-            </div>
             <p class="demo-note">Demo system, fictional data.</p>
           </div>
         </aside>
@@ -138,9 +133,11 @@
                 <button class="user-menu-toggle" type="button" aria-haspopup="true"
                         aria-expanded="false" aria-controls="user-menu-panel"
                         aria-label="Open user menu" data-user-menu-toggle>
+                  <span class="user-menu-label">
+                    <strong>{{ session.get("full_name") }}</strong>
+                    <small>{{ session.get("role", "")|title }}</small>
+                  </span>
                   <span class="topbar-avatar" aria-hidden="true">{{ session.get("full_name", "U")[:1]|upper }}</span>
-                  <span class="user-menu-label">{{ session.get("full_name") }}</span>
-                  {{ icon("chevron-right", "user-menu-chevron") }}
                 </button>
                 <div class="user-menu-panel glass-card" id="user-menu-panel"
                      role="menu" hidden data-user-menu>

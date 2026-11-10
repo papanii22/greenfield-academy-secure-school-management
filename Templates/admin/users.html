@@ -30,12 +30,19 @@
     {% if result.users %}
       <div class="table-wrap">
         <table class="data-table">
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Class / student no.</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Role</th><th>Class / student no.</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             {% for user in result.users %}
               <tr>
-                <td>{{ user.full_name }}</td>
-                <td>{{ user.email }}</td>
+                <td>
+                  <span class="person">
+                    <span class="avatar" aria-hidden="true">{{ user.full_name[:1]|upper }}</span>
+                    <span class="person-copy">
+                      <strong>{{ user.full_name }}</strong>
+                      <small>{{ user.email }}</small>
+                    </span>
+                  </span>
+                </td>
                 <td><span class="badge badge-role">{{ user.role|title }}</span></td>
                 <td>{% if user.student_number %}{{ user.class_name }} · {{ user.student_number }}{% else %}—{% endif %}</td>
                 <td><span class="badge {% if user.is_active %}badge-success{% else %}badge-danger{% endif %}">{{ "Active" if user.is_active else "Inactive" }}</span></td>
