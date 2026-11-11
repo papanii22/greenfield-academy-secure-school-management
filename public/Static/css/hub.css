@@ -1835,6 +1835,13 @@ a.tile:hover {
   font-weight: 600;
 }
 
+.conversation-region {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
 .conversation-list {
   overflow-y: auto;
   flex: 1;

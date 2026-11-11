@@ -6,7 +6,7 @@
 {% block page_title %}Assignments{% endblock %}
 
 {% block content %}
-  <section class="tile-grid tile-grid-row" aria-label="Assignment summary">
+  <section class="tile-grid tile-grid-row" aria-label="Assignment summary" data-live-region="assignment-tiles">
     <article class="tile glass-card"><span class="tile-icon tone-sky">{{ icon("clipboard-list") }}</span><strong>{{ result.total }}</strong><span>Total{% if search %} matching{% endif %}</span></article>
     <article class="tile glass-card"><span class="tile-icon tone-lavender">{{ icon("check-circle") }}</span><strong>{{ result.done }}</strong><span>Completed</span></article>
     <article class="tile glass-card"><span class="tile-icon tone-yellow">{{ icon("clock") }}</span><strong>{{ result.in_progress }}</strong><span>In progress</span></article>
@@ -21,6 +21,7 @@
         <input class="form-control" id="assignment-search" type="search" name="q" maxlength="100" value="{{ search }}" placeholder="Search by subject">
       </form>
     </div>
+    <div data-live-region="assignment-rows">
     {% if result.rows %}
       <div class="table-wrap"><table class="data-table">
         <thead><tr><th>No</th><th>Task</th><th>Subject</th><th>Due date</th><th>Time</th><th>Status</th><th>Update</th></tr></thead>
@@ -56,5 +57,6 @@
     {% else %}
       <div class="empty-state">{{ icon("clipboard-list") }}<p>{% if search %}No assignments match “{{ search }}”.{% else %}No assignments have been set for your class yet.{% endif %}</p></div>
     {% endif %}
+    </div>
   </section>
 {% endblock %}

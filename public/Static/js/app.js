@@ -99,9 +99,8 @@
   });
 
   // Wide tables scroll sideways on small screens; make that reachable by keyboard.
-  const tableWraps = document.querySelectorAll(".table-wrap");
   function markScrollableTables() {
-    tableWraps.forEach((wrap) => {
+    document.querySelectorAll(".table-wrap").forEach((wrap) => {
       if (wrap.scrollWidth > wrap.clientWidth + 1) {
         wrap.setAttribute("tabindex", "0");
         wrap.setAttribute("role", "region");
@@ -115,9 +114,9 @@
   }
   markScrollableTables();
   window.addEventListener("resize", markScrollableTables, { passive: true });
-  document.querySelectorAll("details").forEach((details) => {
-    details.addEventListener("toggle", markScrollableTables);
-  });
+  // "toggle" does not bubble; listening in the capture phase catches every <details>.
+  document.addEventListener("toggle", markScrollableTables, true);
+  document.addEventListener("greenfield:live-updated", markScrollableTables);
 
   const accountRole = document.querySelector("#account-role");
   function updateAccountFields() {
@@ -130,8 +129,12 @@
   accountRole?.addEventListener("change", updateAccountFields);
   updateAccountFields();
 
-  document.querySelectorAll("select[data-auto-submit]").forEach((select) => {
-    select.addEventListener("change", () => select.form?.requestSubmit());
+  // Delegated, so controls swapped in by the live refresh work too.
+  document.addEventListener("change", (event) => {
+    const control = event.target;
+    if (control instanceof Element && control.matches("select[data-auto-submit], input[data-auto-submit]")) {
+      control.form?.requestSubmit();
+    }
   });
 
   document.querySelectorAll("[data-password-toggle]").forEach((button) => {
@@ -150,24 +153,24 @@
   document.querySelectorAll("[data-chat-thread]").forEach((thread) => {
     thread.scrollTop = thread.scrollHeight;
   });
-  document.querySelectorAll("textarea[data-enter-submit]").forEach((area) => {
-    area.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
-      event.preventDefault();
-      if (area.value.trim()) area.form?.requestSubmit();
-    });
+  document.addEventListener("keydown", (event) => {
+    const area = event.target;
+    if (!(area instanceof HTMLTextAreaElement) || !area.matches("[data-enter-submit]")) return;
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    if (area.value.trim()) area.form?.requestSubmit();
   });
 
   // Small pop-over forms built on <details> close on outside click or Escape.
-  const popovers = document.querySelectorAll("details.row-popover");
+  const openPopovers = () => document.querySelectorAll("details.row-popover[open]");
   document.addEventListener("click", (event) => {
-    popovers.forEach((popover) => {
-      if (popover.open && !popover.contains(event.target)) popover.open = false;
+    openPopovers().forEach((popover) => {
+      if (!popover.contains(event.target)) popover.open = false;
     });
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    popovers.forEach((popover) => {
+    openPopovers().forEach((popover) => {
       if (popover.open) {
         popover.open = false;
         popover.querySelector("summary")?.focus();

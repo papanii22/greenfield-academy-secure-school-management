@@ -6,6 +6,7 @@ from the session and checks access in SQL, so identifiers sent by the browser
 are never trusted on their own.
 """
 import calendar
+import hashlib
 import logging
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
@@ -1558,6 +1559,42 @@ def _teacher_widgets(cursor, widgets: dict[str, Any], teacher_id: int, term: int
             for subject in subjects
         ],
     }
+
+
+def live_state(user_id: int, role: str) -> dict[str, Any]:
+    """Unread counts plus a fingerprint that changes whenever data the user can
+    see changes. Cheap: index lookups only, so it can be polled.
+
+    Most writes record an audit event, so the newest audit id covers them; the
+    few that don't (messages, personal tasks, assignment status) are added.
+    """
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    (SELECT COALESCE(MAX(id), 0) FROM audit_logs) AS audit,
+                    (SELECT COALESCE(MAX(m.id), 0)
+                     FROM conversation_members me
+                     JOIN messages m ON m.conversation_id = me.conversation_id
+                     WHERE me.user_id = %(user)s) AS message,
+                    (SELECT COUNT(*) FROM conversation_members WHERE user_id = %(user)s)
+                        AS conversations,
+                    (SELECT COUNT(*) || ':' || COUNT(*) FILTER (WHERE done)
+                     FROM user_tasks WHERE user_id = %(user)s) AS tasks,
+                    (SELECT COALESCE(MAX(updated_at)::text, '') FROM assignment_submissions)
+                        AS submissions,
+                    (SELECT COUNT(*) FROM notice_views WHERE user_id = %(user)s) AS seen
+                """,
+                {"user": user_id},
+            )
+            marks = cursor.fetchone()
+    counts = nav_counts(user_id, role)
+    fingerprint = hashlib.sha256(
+        "|".join(str(marks[key]) for key in sorted(marks)).encode()
+        + f"|{user_id}|{role}".encode()
+    ).hexdigest()[:16]
+    return {"version": fingerprint, **counts}
 
 
 def gpa_from_results(results: list[dict[str, Any]]) -> float | None:

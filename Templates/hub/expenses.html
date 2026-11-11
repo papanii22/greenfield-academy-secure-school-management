@@ -8,7 +8,7 @@
 {% block content %}
   <section class="panel glass-card page-panel" aria-labelledby="expenses-title">
     <div class="page-toolbar">
-      <h2 id="expenses-title">School expenses <small class="muted-text">({{ result.total }} · {{ "{:,.2f}".format(result.sum) }})</small></h2>
+      <h2 id="expenses-title">School expenses <small class="muted-text" data-live-region="expense-total">({{ result.total }} · {{ "{:,.2f}".format(result.sum) }})</small></h2>
       <form class="toolbar-filters" method="get" action="{{ url_for('hub.expenses') }}" role="search">
         <div class="inline-search">
           <label class="visually-hidden" for="expense-search">Search by ID or expense</label>
@@ -40,6 +40,7 @@
       </form>
     </details>
 
+    <div data-live-region="expense-rows">
     {% if result.rows %}
       <div class="table-wrap"><table class="data-table">
         <thead><tr><th>ID</th><th>Category</th><th>Expense</th><th>Quantity</th><th>Amount</th><th>Payment date</th><th>Action</th></tr></thead>
@@ -66,5 +67,6 @@
     {% else %}
       <div class="empty-state">{{ icon("wallet") }}<p>No expenses match these filters.</p></div>
     {% endif %}
+    </div>
   </section>
 {% endblock %}

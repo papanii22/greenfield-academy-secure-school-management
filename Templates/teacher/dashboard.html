@@ -25,7 +25,7 @@
 
   <div class="dashboard-layout">
     <div class="dashboard-main">
-      <section class="stat-grid stat-grid-plain" aria-label="Teaching summary">
+      <section data-live-region="stats" class="stat-grid stat-grid-plain" aria-label="Teaching summary">
         <a class="stat-card glass-card stat-link" href="#your-classes"><span class="stat-label">Total classes</span><strong class="stat-value">{{ dashboard.classes|length }}</strong>{{ icon("graduation-cap", "stat-icon") }}</a>
         <a class="stat-card glass-card stat-link" href="{{ url_for('hub.students') }}"><span class="stat-label">Total students</span><strong class="stat-value">{{ w.student_count }}</strong>{{ icon("users", "stat-icon") }}</a>
         <a class="stat-card glass-card stat-link" href="{{ url_for('hub.profile') }}"><span class="stat-label">Subjects taught</span><strong class="stat-value">{{ w.subject_count }}</strong>{{ icon("book", "stat-icon") }}</a>
@@ -33,7 +33,7 @@
       </section>
 
       <div class="widget-row widget-row-1-2">
-        <article class="chart-card glass-card">
+        <article data-live-region="today-attendance" class="chart-card glass-card">
           {{ card_head("Student attendance", url_for("hub.attendance"), "Register", "Today") }}
           {% set t = w.today_attendance %}
           {% set marked = t.present + t.late + t.absent %}
@@ -43,7 +43,7 @@
           </div>
           {% if not marked %}<p class="chart-summary">No attendance has been marked today.</p>{% endif %}
         </article>
-        <article class="chart-card glass-card">
+        <article data-live-region="performance" class="chart-card glass-card">
           {{ card_head("Student performance", "#your-classes", "Enter results", "Term " ~ dashboard.term ~ " averages by class") }}
           {% if w.performance.labels %}
             <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"bar","labels":w.performance.labels,"datasets":w.performance.datasets,"max":100}|tojson }}' role="img" aria-label="Average score in each of your subjects for each class"></canvas></div>
@@ -54,11 +54,11 @@
       </div>
 
       <div class="widget-row widget-row-1-2">
-        <section class="glass-card widget-card" aria-labelledby="tasks-title">
+        <section data-live-region="tasks" class="glass-card widget-card" aria-labelledby="tasks-title">
           <div class="card-head"><h2 id="tasks-title">Tasks</h2></div>
           {{ tasks_widget(w.tasks) }}
         </section>
-        <article class="chart-card glass-card">
+        <article data-live-region="teaching-activity" class="chart-card glass-card">
           {{ card_head("Teaching activity", url_for("hub.attendance"), "Register", "Class attendance rate · last 30 days") }}
           <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"line","labels":dashboard.attendance_trend|map(attribute="label")|list,"datasets":[{"label":"Attendance rate (%)","data":dashboard.attendance_trend|map(attribute="rate")|list}],"max":100}|tojson }}' role="img" aria-label="Attendance trend in your classes over the last 30 days"></canvas></div>
           <details class="chart-data">
@@ -72,23 +72,23 @@
     </div>
 
     <aside class="dashboard-aside" aria-label="Calendar, messages and notices">
-      <section class="glass-card widget-card">
+      <section data-live-region="calendar" class="glass-card widget-card">
         {{ mini_calendar(w.calendar) }}
         {{ card_head("Agenda", url_for("hub.calendar_view"), "Calendar") }}
         {{ agenda(w.agenda) }}
       </section>
-      <section class="glass-card widget-card">
+      <section data-live-region="messages" class="glass-card widget-card">
         {{ card_head("Messages", url_for("hub.messages")) }}
         {{ messages_preview(w.conversations) }}
       </section>
-      <section class="glass-card widget-card">
+      <section data-live-region="notices" class="glass-card widget-card">
         {{ card_head("Notices", url_for("hub.notices")) }}
         {{ notices_preview(w.notices[:3]) }}
       </section>
     </aside>
   </div>
 
-  <section class="panel glass-card" aria-labelledby="student-tasks-title">
+  <section data-live-region="student-tasks" class="panel glass-card" aria-labelledby="student-tasks-title">
     <div class="section-heading">
       <div><p class="eyebrow">Latest assignment status</p><h2 id="student-tasks-title">Student tasks</h2></div>
       <a class="button button-secondary button-small" href="{{ url_for('hub.assignments') }}">{{ icon("plus") }} Manage assignments</a>
@@ -127,7 +127,7 @@
     <a class="button button-ghost button-small" href="{{ url_for('hub.students') }}">All my students {{ icon("chevron-right") }}</a>
   </div>
   {% if dashboard.classes %}
-    <section class="class-grid" aria-label="Your classes">
+    <section data-live-region="classes" class="class-grid" aria-label="Your classes">
       {% for school_class in dashboard.classes %}
         <article class="class-card glass-card">
           <div class="section-heading">

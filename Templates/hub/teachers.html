@@ -17,6 +17,7 @@
       </form>
       <a class="round-button" href="{{ url_for('admin.create_user') }}" aria-label="Add a teacher" title="Add a teacher">{{ icon("plus") }}</a>
     </div>
+    <div data-live-region="teacher-rows">
     {% if result.rows %}
       <div class="table-wrap"><table class="data-table people-table">
         <thead><tr><th>Teacher name</th><th>School ID</th><th>Subject</th><th>Class(es)</th><th>Phone number</th><th>Address</th><th>Action</th></tr></thead>
@@ -50,5 +51,6 @@
     {% else %}
       <div class="empty-state">{{ icon("users") }}<p>{% if search %}No teachers match “{{ search }}”.{% else %}No teacher accounts exist yet.{% endif %}</p></div>
     {% endif %}
+    </div>
   </section>
 {% endblock %}

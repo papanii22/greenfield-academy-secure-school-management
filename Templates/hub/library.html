@@ -41,6 +41,7 @@
       </details>
     {% endif %}
 
+    <div data-live-region="book-rows">
     {% if result.rows %}
       <div class="table-wrap"><table class="data-table">
         <thead><tr><th>Book ID</th><th>Book name</th><th>Writer</th><th>Subject</th><th>Class(es)</th><th>Publish date</th><th>Status</th>{% if is_admin %}<th>Action</th>{% endif %}</tr></thead>
@@ -75,5 +76,6 @@
     {% else %}
       <div class="empty-state">{{ icon("book") }}<p>{% if search %}No books match “{{ search }}”.{% else %}The library catalogue is empty.{% endif %}</p></div>
     {% endif %}
+    </div>
   </section>
 {% endblock %}

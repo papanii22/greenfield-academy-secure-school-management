@@ -30,6 +30,7 @@
     </section>
     <section class="glass-card widget-card" aria-labelledby="my-assignments-title">
       <div class="card-head"><h2 id="my-assignments-title">Your assignments</h2></div>
+      <div data-live-region="my-assignments">
       {% if assignments %}
         <ul class="assignment-list">
           {% for item in assignments %}
@@ -47,6 +48,7 @@
       {% else %}
         <p class="widget-empty">No assignments yet.</p>
       {% endif %}
+      </div>
     </section>
   </div>
 
@@ -59,6 +61,7 @@
         <input class="form-control" id="submission-search" type="search" name="q" maxlength="100" value="{{ search }}" placeholder="Search by topic">
       </form>
     </div>
+    <div data-live-region="submission-rows">
     {% if submissions.rows %}
       <div class="table-wrap"><table class="data-table">
         <thead><tr><th>Student name</th><th>Topic</th><th>Task name</th><th>Due date</th><th>Status</th><th>Action</th></tr></thead>
@@ -86,5 +89,6 @@
     {% else %}
       <div class="empty-state">{{ icon("clipboard-list") }}<p>{% if search %}Nothing matches “{{ search }}”.{% else %}Student progress appears here once you create an assignment.{% endif %}</p></div>
     {% endif %}
+    </div>
   </section>
 {% endblock %}

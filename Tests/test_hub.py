@@ -444,6 +444,102 @@ def test_dashboard_links_all_resolve(client, admin_dashboard, monkeypatch, fake_
             assert status == 200, (role, href, status)
 
 
+def test_live_state_reports_counts_for_the_session_user(client, monkeypatch):
+    calls = []
+    monkeypatch.setattr(hub, "live_state", lambda user_id, role: calls.append((user_id, role))
+                        or {"version": "abc123", "messages": 2, "notices": 1})
+    sign_in(client, "student", user_id=501)
+
+    response = client.get("/live/state?user_id=1")
+
+    assert response.status_code == 200
+    assert response.json == {"version": "abc123", "messages": 2, "notices": 1}
+    assert response.headers["Cache-Control"] == "no-store"
+    assert calls == [(501, "student")]
+
+
+def test_live_state_requires_sign_in(client):
+    response = client.get("/live/state")
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/login")
+
+
+def test_live_state_degrades_when_tables_are_missing(client, monkeypatch):
+    import psycopg
+
+    def missing(*_args):
+        raise psycopg.errors.UndefinedTable("relation does not exist")
+
+    monkeypatch.setattr(hub, "live_state", missing)
+    sign_in(client, "admin")
+
+    assert client.get("/live/state").json == {"version": None, "messages": 0, "notices": 0}
+
+
+def test_background_requests_do_not_extend_the_session(client, monkeypatch):
+    """Polling must not keep an unattended session alive past the idle timeout."""
+    monkeypatch.setattr(hub, "live_state",
+                        lambda *_a: {"version": "v", "messages": 0, "notices": 0})
+    sign_in(client, "admin")
+    with client.session_transaction() as session:
+        session.permanent = True
+
+    normal = client.get("/live/state")
+    background = client.get("/live/state", headers={"X-Greenfield-Live": "1"})
+
+    assert "session=" in normal.headers.get("Set-Cookie", "")
+    assert "Set-Cookie" not in background.headers
+
+
+def test_signed_in_pages_load_live_refresh(client, fake_hub):
+    login_page = client.get("/login").get_data(as_text=True)
+    assert "data-live-url" not in login_page
+    assert "js/live.js" not in login_page
+
+    sign_in(client, "admin")
+    notices = client.get("/notices").get_data(as_text=True)
+    messages = client.get("/messages/9").get_data(as_text=True)
+
+    assert 'data-live-url="/live/state"' in notices
+    assert 'data-live-interval="5"' in notices
+    assert 'data-live-interval="1"' in messages
+    assert "js/live.js" in notices
+    assert client.get("/Static/js/live.js").status_code == 200
+
+
+@pytest.mark.parametrize("role,path", [(r, p) for r, paths in PAGES.items() for p in paths])
+def test_live_regions_are_uniquely_named(client, fake_hub, role, path):
+    import re
+
+    sign_in(client, role)
+    page = client.get(path).get_data(as_text=True)
+    names = re.findall(r'data-live-region="([^"]+)"', page)
+
+    assert len(names) == len(set(names)), (role, path, names)
+
+
+def test_dashboards_mark_live_regions(client, admin_dashboard, monkeypatch):
+    import re
+
+    from Routes import main, teacher
+
+    monkeypatch.setattr(teacher.school, "get_teacher_dashboard",
+                        lambda *a: {"term": 1, "classes": [], "attendance_trend": []})
+    monkeypatch.setattr(main.school, "get_student_dashboard", lambda *a: {
+        "student": {"id": 1, "student_number": "1", "class_id": 3, "class_name": "Year 10",
+                    "full_name": "Ama Owusu"},
+        "term": 1, "attendance_counts": {"present": 0, "absent": 0, "late": 0},
+        "attendance_percentage": 0, "recent_attendance": [], "results": [], "term_averages": [],
+    })
+    for role, path, expected in (("admin", "/admin", 13), ("teacher", "/teacher", 9),
+                                 ("student", "/student", 10)):
+        sign_in(client, role)
+        names = re.findall(r'data-live-region="([^"]+)"',
+                           client.get(path).get_data(as_text=True))
+        assert len(names) == len(set(names)) >= expected, (role, names)
+
+
 def test_gpa_uses_grade_points():
     assert hub.gpa_from_results([]) is None
     assert hub.gpa_from_results([{"score": 85}, {"score": 72}, {"score": 40}]) == 2.33

@@ -8,6 +8,7 @@ from typing import Any
 
 from argon2 import PasswordHasher
 from flask import Flask, g, jsonify, render_template, request, session
+from flask.sessions import SecureCookieSessionInterface
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from psycopg import errors
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -177,6 +178,24 @@ STUDENT_LAST_NAMES = (
 )
 
 
+LIVE_REQUEST_HEADER = "X-Greenfield-Live"
+
+
+class LiveAwareSessionInterface(SecureCookieSessionInterface):
+    """Background live-refresh requests never re-issue the session cookie.
+
+    Sessions expire after 30 idle minutes because each request pushes the
+    expiry forward. Automatic polling would keep an unattended screen signed in
+    forever, so requests the page makes on its own (marked with the live
+    header) leave the cookie, and therefore the expiry, untouched.
+    """
+
+    def should_set_cookie(self, app: Flask, session) -> bool:
+        if request.headers.get(LIVE_REQUEST_HEADER) == "1":
+            return False
+        return super().should_set_cookie(app, session)
+
+
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(
         __name__,
@@ -185,6 +204,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         static_url_path="/Static",
     )
     app.config.from_object(Config)
+    app.session_interface = LiveAwareSessionInterface()
     if test_config:
         app.config.update(test_config)
     if app.config.get("TRUST_PROXY_HEADERS"):

@@ -4,6 +4,7 @@
 
 {% block title %}Messages | Greenfield Academy{% endblock %}
 {% block page_title %}Messages{% endblock %}
+{% block live_interval %}1{% endblock %}
 
 {% block content %}
   {% set role = session.get("role") %}
@@ -58,6 +59,7 @@
           </div>
         </details>
       </div>
+      <div class="conversation-region" data-live-region="conversations">
       {% if conversations %}
         <ul class="conversation-list">
           {% for conversation in conversations %}
@@ -79,6 +81,7 @@
       {% else %}
         <p class="widget-empty">{% if search %}No conversations match.{% else %}No conversations yet. Use + to start one.{% endif %}</p>
       {% endif %}
+      </div>
     </section>
 
     <section class="chat-main" aria-labelledby="chat-title">
@@ -89,7 +92,7 @@
           <div><h2 id="chat-title">{{ current.title }}</h2>
             <small class="muted-text">{% if current.is_group %}Group · {{ current.members|length }} members{% else %}{{ (current.members|rejectattr("id", "equalto", me)|first or {}).get("role", "")|title }}{% endif %}</small></div>
         </header>
-        <ol class="chat-thread" aria-live="polite" data-chat-thread>
+        <ol class="chat-thread" aria-live="polite" data-chat-thread data-live-region="thread">
           {% for message in current.messages %}
             {% set mine = message.sender_id == me %}
             <li class="chat-message {% if mine %}is-mine{% endif %}">
@@ -116,7 +119,7 @@
     </section>
 
     {% if current and current.is_group %}
-      <aside class="chat-info" aria-labelledby="group-info-title">
+      <aside class="chat-info" aria-labelledby="group-info-title" data-live-region="group-info">
         <h2 id="group-info-title">Group info</h2>
         <div class="chat-info-hero">{{ avatar(current.title, "avatar-xl") }}<strong>{{ current.title }}</strong><small>Group · {{ current.members|length }} members</small></div>
         {% if current.description %}<p class="eyebrow">Description</p><p class="muted-text">{{ current.description }}</p>{% endif %}

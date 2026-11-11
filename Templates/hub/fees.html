@@ -7,7 +7,7 @@
 
 {% block content %}
   {% set t = summary.totals %}
-  <div class="widget-row widget-row-2-1">
+  <div class="widget-row widget-row-2-1" data-live-region="fee-summary">
     <article class="chart-card glass-card">
       <div class="card-head"><div><p class="eyebrow">Payments received in {{ summary.year }}</p><h2>Fees collection</h2></div></div>
       <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"line","labels":["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],"datasets":[{"label":"Collected","data":summary.monthly}],"legend":false}|tojson }}' role="img" aria-label="Fee payments received each month in {{ summary.year }}"></canvas></div>
@@ -73,6 +73,7 @@
       </form>
     </details>
 
+    <div data-live-region="fee-rows">
     {% if result.rows %}
       <div class="table-wrap"><table class="data-table people-table">
         <thead><tr><th>Student name</th><th>Class</th><th>Term</th><th>Tuition fee</th><th>Activities fee</th><th>Miscellaneous</th><th>Amount</th><th>Paid</th><th>Status</th><th>Action</th></tr></thead>
@@ -116,5 +117,6 @@
     {% else %}
       <div class="empty-state">{{ icon("wallet") }}<p>No fee records match these filters.</p></div>
     {% endif %}
+    </div>
   </section>
 {% endblock %}

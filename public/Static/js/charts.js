@@ -100,15 +100,27 @@
     });
   }
 
-  function initializeCharts() {
+  function initializeCharts(root = document) {
     const colors = themeColors();
     Chart.defaults.color = colors.text;
-    document.querySelectorAll("canvas[data-chart]").forEach((canvas) => {
-      charts.push(createChart(canvas, colors));
+    root.querySelectorAll("canvas[data-chart]").forEach((canvas) => {
+      if (!Chart.getChart(canvas)) charts.push(createChart(canvas, colors));
     });
   }
 
   initializeCharts();
+
+  // Live refresh swapped some regions: free charts whose canvas left the page,
+  // then draw the canvases that arrived.
+  document.addEventListener("greenfield:live-updated", (event) => {
+    for (let index = charts.length - 1; index >= 0; index -= 1) {
+      if (!charts[index].canvas.isConnected) {
+        charts[index].destroy();
+        charts.splice(index, 1);
+      }
+    }
+    (event.detail?.regions || []).forEach((region) => initializeCharts(region));
+  });
 
   document.addEventListener("greenfield:theme-change", () => {
     const colors = themeColors();

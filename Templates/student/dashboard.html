@@ -11,7 +11,7 @@
   <div class="dashboard-layout">
     <div class="dashboard-main">
       <div class="widget-row widget-row-welcome">
-        <section class="welcome-card" aria-labelledby="student-welcome-title">
+        <section data-live-region="welcome" class="welcome-card" aria-labelledby="student-welcome-title">
           {{ avatar(dashboard.student.full_name, "avatar-xl") }}
           <div class="welcome-card-copy">
             <div class="welcome-card-head">
@@ -28,7 +28,7 @@
             </ul>
           </div>
         </section>
-        <section class="tile-grid" aria-label="Your summary">
+        <section data-live-region="tiles" class="tile-grid" aria-label="Your summary">
           <a class="tile glass-card" href="{{ url_for('hub.attendance') }}"><span class="tile-icon tone-sky">{{ icon("calendar-check") }}</span><strong>{{ "%.0f"|format(dashboard.attendance_percentage) }}%</strong><span>Attendance</span></a>
           <a class="tile glass-card" href="{{ url_for('hub.assignments') }}"><span class="tile-icon tone-lavender">{{ icon("check-circle") }}</span><strong>{{ w.assignments.done }}</strong><span>Tasks completed</span></a>
           <a class="tile glass-card" href="{{ url_for('hub.assignments') }}"><span class="tile-icon tone-yellow">{{ icon("clipboard-list") }}</span><strong>{{ w.assignments.in_progress }}</strong><span>Tasks in progress</span></a>
@@ -56,7 +56,7 @@
       </div>
 
       <div class="widget-row widget-row-1-2">
-        <article class="chart-card glass-card">
+        <article data-live-region="performance" class="chart-card glass-card">
           {{ card_head("Performance", url_for("main.export_student_report", report="results", output_format="pdf", term=dashboard.term), "Results PDF", "Term " ~ dashboard.term ~ " grade point average") }}
           <div class="gauge">
             <canvas data-chart='{{ {"type":"doughnut","labels":["GPA","Remaining"],"datasets":[{"label":"GPA","data":[gpa or 0, 4 - (gpa or 0)]}],"half":true,"cutout":"72%","legend":false,"palette":[2,1]}|tojson }}' role="img" aria-label="Grade point average {{ gpa if gpa is not none else 'not available' }} of 4.0"></canvas>
@@ -64,7 +64,7 @@
           </div>
           <p class="chart-summary">A = 4, B = 3, C = 2, D = 1, F = 0, averaged across this term's subjects.</p>
         </article>
-        <article class="chart-card glass-card">
+        <article data-live-region="score-activity" class="chart-card glass-card">
           {{ card_head("Score activity", url_for("main.export_student_report", report="results", output_format="csv", term=dashboard.term), "Results CSV", "Average score by term") }}
           {% if dashboard.term_averages %}
             <div class="chart-canvas-wrap chart-canvas-small"><canvas data-chart='{{ charts.averages|tojson }}' role="img" aria-label="Your average score trend by term"></canvas></div>
@@ -81,7 +81,7 @@
       </div>
 
       <div class="widget-row widget-row-1-2">
-        <section class="glass-card widget-card" aria-labelledby="recent-activity-title">
+        <section data-live-region="recent-activity" class="glass-card widget-card" aria-labelledby="recent-activity-title">
           <div class="card-head"><h2 id="recent-activity-title">Recent activity</h2><a class="text-link" href="{{ url_for('hub.attendance') }}">View all</a></div>
           {% if dashboard.recent_attendance %}
             <ul class="timeline">
@@ -94,7 +94,7 @@
             <p class="widget-empty">No attendance has been recorded yet.</p>
           {% endif %}
         </section>
-        <article class="chart-card glass-card" id="grade-by-subject">
+        <article data-live-region="grades" class="chart-card glass-card" id="grade-by-subject">
           {{ card_head("Grade by subject", url_for("main.export_student_report", report="results", output_format="csv", term=dashboard.term), "Results CSV", "Term " ~ dashboard.term) }}
           {% if dashboard.results %}
             <div class="chart-canvas-wrap"><canvas data-chart='{{ charts.grades|tojson }}' role="img" aria-label="Your score in each subject this term"></canvas></div>
@@ -114,16 +114,16 @@
     </div>
 
     <aside class="dashboard-aside" aria-label="Calendar, messages and notices">
-      <section class="glass-card widget-card">
+      <section data-live-region="calendar" class="glass-card widget-card">
         {{ mini_calendar(w.calendar) }}
         {{ card_head("Agenda", url_for("hub.calendar_view"), "View all") }}
         {{ agenda(w.agenda) }}
       </section>
-      <section class="glass-card widget-card">
+      <section data-live-region="messages" class="glass-card widget-card">
         {{ card_head("Messages", url_for("hub.messages")) }}
         {{ messages_preview(w.conversations) }}
       </section>
-      <section class="glass-card widget-card">
+      <section data-live-region="notices" class="glass-card widget-card">
         {{ card_head("Notices", url_for("hub.notices")) }}
         {{ notices_preview(w.notices[:3]) }}
       </section>
@@ -142,6 +142,7 @@
       </form>
     </div>
     {% set a = w.assignments %}
+    <div data-live-region="assignments">
     {% if a.rows %}
       <div class="table-wrap"><table class="data-table">
         <thead><tr><th>No</th><th>Task</th><th>Subject</th><th>Due date</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
@@ -178,10 +179,11 @@
     {% else %}
       <div class="empty-state">{{ icon("clipboard-list") }}<p>{% if assignment_search %}No assignments match “{{ assignment_search }}”.{% else %}No assignments have been set for your class yet.{% endif %}</p></div>
     {% endif %}
+    </div>
   </section>
 
   {% if w.fees %}
-    <section class="panel glass-card" aria-labelledby="fees-title">
+    <section data-live-region="fees" class="panel glass-card" aria-labelledby="fees-title">
       <div class="section-heading"><h2 id="fees-title">School fees</h2><a class="text-link" href="{{ url_for('hub.fees') }}">View details</a></div>
       <div class="table-wrap"><table class="data-table">
         <thead><tr><th>Term</th><th>Total</th><th>Paid</th><th>Due date</th><th>Status</th></tr></thead>

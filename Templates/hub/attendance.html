@@ -28,6 +28,7 @@
       {% endif %}
     </div>
     <p class="chart-summary">{{ grid.dates[0].strftime("%d %B %Y") }} to {{ grid.dates[-1].strftime("%d %B %Y") }}. Weekends are shaded.</p>
+    <div data-live-region="register">
     {% if grid.rows %}
       <div class="table-wrap"><table class="data-table attendance-grid">
         <caption class="visually-hidden">Attendance for each student and day</caption>
@@ -62,6 +63,7 @@
     {% else %}
       <div class="empty-state">{{ icon("calendar-check") }}<p>{% if grid.classes %}No students in this class yet.{% else %}No classes are available to you.{% endif %}</p></div>
     {% endif %}
+    </div>
     <nav class="pager" aria-label="Date range">
       <a class="button button-secondary button-small" href="{{ url_for('hub.attendance', start=previous_start.isoformat(), class_id=grid.class_id if role != 'student' else None) }}">{{ icon("chevron-left") }} Previous</a>
       <a class="button button-ghost button-small" href="{{ url_for('hub.attendance', class_id=grid.class_id if role != 'student' else None) }}">Recent</a>
