@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import mini_calendar, agenda, messages_preview, notices_preview, avatar, migration_notice, card_head %}
 
 {% block title %}Administrator dashboard | Greenfield Academy{% endblock %}
 {% block page_title %}Administrator dashboard{% endblock %}
 
 {% block content %}
+  {% set w = widgets %}
   <div class="section-heading dashboard-title-row">
     <div>
       <p class="eyebrow">School overview</p>
@@ -19,29 +21,134 @@
       </select>
     </form>
   </div>
+  {{ migration_notice(w) }}
 
-  <section class="stat-grid" aria-label="School statistics">
-    <article class="stat-card glass-card">
-      <span class="stat-label">Total students</span>
-      <strong class="stat-value">{{ dashboard.total_students }}</strong>
-      {{ icon("graduation-cap", "stat-icon") }}
-    </article>
-    <article class="stat-card glass-card">
-      <span class="stat-label">Active teachers</span>
-      <strong class="stat-value">{{ dashboard.total_teachers }}</strong>
-      {{ icon("users", "stat-icon") }}
-    </article>
-    <article class="stat-card glass-card">
-      <span class="stat-label">Today's attendance</span>
-      <strong class="stat-value">{{ "%.1f"|format(dashboard.attendance_rate) }}%</strong>
-      {{ icon("calendar-check", "stat-icon") }}
-    </article>
-    <article class="stat-card glass-card">
-      <span class="stat-label">School average · Term {{ dashboard.term }}</span>
-      <strong class="stat-value">{% if dashboard.school_average is not none %}{{ "%.1f"|format(dashboard.school_average) }}%{% else %}—{% endif %}</strong>
-      {{ icon("bar-chart", "stat-icon") }}
-    </article>
-  </section>
+  <div class="dashboard-layout">
+    <div class="dashboard-main">
+      <section class="stat-grid" aria-label="School statistics">
+        <a class="stat-card glass-card stat-link" href="{{ url_for('hub.students') }}">
+          <span class="stat-label">Students</span>
+          <strong class="stat-value">{{ "{:,}".format(dashboard.total_students) }}</strong>
+          {{ icon("graduation-cap", "stat-icon") }}
+        </a>
+        <a class="stat-card glass-card stat-link" href="{{ url_for('hub.teachers') }}">
+          <span class="stat-label">Teachers</span>
+          <strong class="stat-value">{{ "{:,}".format(dashboard.total_teachers) }}</strong>
+          {{ icon("users", "stat-icon") }}
+        </a>
+        <a class="stat-card glass-card stat-link" href="{{ url_for('admin.users', role='admin') }}">
+          <span class="stat-label">Staff (administrators)</span>
+          <strong class="stat-value">{{ "{:,}".format(w.staff) }}</strong>
+          {{ icon("shield", "stat-icon") }}
+        </a>
+        <a class="stat-card glass-card stat-link" href="{{ url_for('hub.attendance') }}">
+          <span class="stat-label">Today's attendance</span>
+          <strong class="stat-value">{{ "%.1f"|format(dashboard.attendance_rate) }}%</strong>
+          {{ icon("calendar-check", "stat-icon") }}
+        </a>
+      </section>
+
+      <div class="widget-row widget-row-1-2">
+        <article class="chart-card glass-card">
+          {{ card_head("Students", url_for("hub.students"), "View all") }}
+          {% set g = w.gender %}
+          <div class="chart-canvas-wrap chart-canvas-small"><canvas data-chart='{{ {"type":"doughnut","labels":["Boys","Girls","Not recorded"],"datasets":[{"label":"Students","data":[g.male,g.female,g.unspecified]}],"cutout":"68%","legend":false}|tojson }}' role="img" aria-label="Students by gender: {{ g.male }} boys, {{ g.female }} girls, {{ g.unspecified }} not recorded"></canvas></div>
+          {% set gender_total = g.male + g.female + g.unspecified %}
+          <dl class="legend-stats">
+            <div><dt><span class="dot tone-1"></span>Boys</dt><dd>{{ g.male }}<small>{% if gender_total %}{{ (100 * g.male / gender_total)|round|int }}%{% else %}0%{% endif %}</small></dd></div>
+            <div><dt><span class="dot tone-2"></span>Girls</dt><dd>{{ g.female }}<small>{% if gender_total %}{{ (100 * g.female / gender_total)|round|int }}%{% else %}0%{% endif %}</small></dd></div>
+          </dl>
+        </article>
+        <article class="chart-card glass-card">
+          {{ card_head("Attendance", url_for("hub.attendance"), "Open register", "This week") }}
+          {% set wa = w.weekly_attendance %}
+          <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"bar","labels":wa.labels,"datasets":[{"label":"Total present","data":wa.present},{"label":"Total absent","data":wa.absent}],"palette":[1,0]}|tojson }}' role="img" aria-label="Students present and absent on each school day this week"></canvas></div>
+          <details class="chart-data">
+            <summary>View weekly attendance data</summary>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>Day</th><th>Present</th><th>Absent</th></tr></thead>
+              <tbody>{% for label in wa.labels %}<tr><td>{{ label }}</td><td>{{ wa.present[loop.index0] }}</td><td>{{ wa.absent[loop.index0] }}</td></tr>{% endfor %}</tbody>
+            </table></div>
+          </details>
+        </article>
+      </div>
+
+      <div class="widget-row widget-row-2-1">
+        <article class="chart-card glass-card">
+          {{ card_head("Earnings", url_for("hub.fees"), "Finance", "This year") }}
+          {% set e = w.earnings %}
+          <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"line","labels":e.labels,"datasets":[{"label":"Income (fees)","data":e.income},{"label":"Expense","data":e.expense}],"palette":[0,2]}|tojson }}' role="img" aria-label="Fee income and school expenses by month this year"></canvas></div>
+          <details class="chart-data">
+            <summary>View earnings data</summary>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>Month</th><th>Income</th><th>Expense</th></tr></thead>
+              <tbody>{% for label in e.labels %}<tr><td>{{ label }}</td><td>{{ "{:,.2f}".format(e.income[loop.index0]) }}</td><td>{{ "{:,.2f}".format(e.expense[loop.index0]) }}</td></tr>{% endfor %}</tbody>
+            </table></div>
+          </details>
+        </article>
+        <div class="mini-stat-stack">
+          <a class="mini-stat glass-card" href="{{ url_for('hub.fees', status='paid') }}">
+            <span class="mini-stat-icon tone-sky">{{ icon("wallet") }}</span>
+            <strong>{{ "{:,.2f}".format(w.fees.collected|float) }}</strong>
+            <span>Fees collected</span>
+          </a>
+          <a class="mini-stat glass-card" href="{{ url_for('hub.fees', status='overdue') }}">
+            <span class="mini-stat-icon tone-yellow">{{ icon("alert-triangle") }}</span>
+            <strong>{{ "{:,.2f}".format(w.fees.outstanding|float) }}</strong>
+            <span>Outstanding fees</span>
+          </a>
+          <a class="mini-stat glass-card" href="{{ url_for('hub.library', status='checked_out') }}">
+            <span class="mini-stat-icon tone-lavender">{{ icon("book") }}</span>
+            <strong>{{ w.books.checked_out }} / {{ w.books.total }}</strong>
+            <span>Library books on loan</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <aside class="dashboard-aside" aria-label="Calendar and messages">
+      <section class="glass-card widget-card">
+        {{ mini_calendar(w.calendar) }}
+        {{ card_head("Agenda", url_for("hub.calendar_view"), "Calendar") }}
+        {{ agenda(w.agenda) }}
+      </section>
+      <section class="glass-card widget-card">
+        {{ card_head("Messages", url_for("hub.messages")) }}
+        {{ messages_preview(w.conversations) }}
+      </section>
+    </aside>
+  </div>
+
+  <div class="widget-row widget-row-thirds">
+    <section class="glass-card widget-card">
+      {{ card_head("Student activity", url_for("admin.export_report", report="results", output_format="csv", term=dashboard.term), "Results CSV", "Top performers · Term " ~ dashboard.term) }}
+      {% if w.top_students %}
+        <ul class="activity-list">
+          {% for student in w.top_students %}
+            <li><span class="activity-icon tone-{{ loop.index }}">{{ icon("award") }}</span>
+              <span><a class="activity-link" href="{{ url_for('hub.students', q=student.full_name) }}"><strong>{{ student.full_name }}</strong></a><small>{{ student.class_name }} · average {{ "%.1f"|format(student.average) }}% (grade {{ student.grade }})</small></span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="widget-empty">Results for this term will appear here.</p>
+      {% endif %}
+    </section>
+    <section class="glass-card widget-card">
+      {{ card_head("Notice board", url_for("hub.notices")) }}
+      {{ notices_preview(w.notices) }}
+    </section>
+    <section class="glass-card widget-card">
+      {{ card_head("Recent activity", url_for("admin.audit")) }}
+      {% if dashboard.recent_activity %}
+        <ul class="timeline">
+          {% for event in dashboard.recent_activity[:5] %}
+            <li><a class="activity-link" href="{{ url_for('admin.audit', action=event.action) }}"><strong>{{ event.actor }}</strong> {{ event.action.replace("_", " ") }}</a>
+              <small>{{ event.created_at.strftime("%d %b, %H:%M") }}</small></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="widget-empty">No audit activity has been recorded yet.</p>
+      {% endif %}
+    </section>
+  </div>
 
   <section class="chart-grid" aria-label="School data charts">
     <article class="chart-card glass-card">
@@ -101,26 +208,16 @@
         </div>
       </details>
     </article>
-  </section>
-
-  <section class="panel glass-card" aria-labelledby="audit-preview-title">
-    <div class="section-heading">
-      <div><p class="eyebrow">Latest events</p><h2 id="audit-preview-title">Recent audit activity</h2></div>
+    <article class="chart-card glass-card">
+      <div class="section-heading">
+        <div><p class="eyebrow">Latest events</p><h2>Audit exports</h2></div>
+      </div>
+      <p class="chart-summary">Download filtered audit activity for the last 30 days, or open the full log.</p>
       <div class="export-actions">
-        <a class="button button-ghost button-small" href="{{ url_for('admin.audit') }}">View audit log {{ icon("chevron-right") }}</a>
+        <a class="button button-secondary button-small" href="{{ url_for('admin.audit') }}">View audit log {{ icon("chevron-right") }}</a>
         <a class="button button-ghost button-small" href="{{ url_for('admin.export_report', report='audit', output_format='csv') }}">Audit CSV</a>
         <a class="button button-ghost button-small" href="{{ url_for('admin.export_report', report='audit', output_format='pdf') }}">Audit PDF</a>
       </div>
-    </div>
-    {% if dashboard.recent_activity %}
-      <div class="table-wrap"><table class="data-table">
-        <thead><tr><th>Event</th><th>Account</th><th>Time</th></tr></thead>
-        <tbody>{% for event in dashboard.recent_activity %}
-          <tr><td>{{ event.action }}</td><td>{{ event.actor }}</td><td>{{ event.created_at.strftime("%Y-%m-%d %H:%M") }}</td></tr>
-        {% endfor %}</tbody>
-      </table></div>
-    {% else %}
-      <div class="empty-state">{{ icon("activity") }}<p>No audit activity has been recorded yet.</p></div>
-    {% endif %}
+    </article>
   </section>
 {% endblock %}

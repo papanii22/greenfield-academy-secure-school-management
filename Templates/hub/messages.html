@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import avatar %}
+
+{% block title %}Messages | Greenfield Academy{% endblock %}
+{% block page_title %}Messages{% endblock %}
+
+{% block content %}
+  {% set role = session.get("role") %}
+  {% set me = session.get("user_id") %}
+  <div class="chat-layout glass-card {% if current %}has-current{% endif %}">
+    <section class="chat-sidebar" aria-labelledby="conversations-title">
+      <h2 id="conversations-title" class="visually-hidden">Conversations</h2>
+      <div class="chat-sidebar-head">
+        <form class="inline-search" method="get" action="{{ url_for('hub.messages') }}" role="search">
+          <label class="visually-hidden" for="conversation-search">Search conversations</label>
+          {{ icon("search") }}
+          <input class="form-control" id="conversation-search" type="search" name="q" maxlength="100" value="{{ search }}" placeholder="Search">
+        </form>
+        <details class="row-popover new-chat">
+          <summary class="round-button" aria-label="New conversation">{{ icon("plus") }}</summary>
+          <div class="popover-form glass-card">
+            <form class="stack-form" method="post" action="{{ url_for('hub.new_conversation') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <p class="eyebrow">New message</p>
+              <label for="recipient">To</label>
+              <select class="form-control" id="recipient" name="recipient_id" required>
+                <option value="">Choose a person</option>
+                {% for group_role, people in recipients|groupby("role") %}
+                  <optgroup label="{{ group_role|title }}s">
+                    {% for person in people %}<option value="{{ person.id }}">{{ person.full_name }}</option>{% endfor %}
+                  </optgroup>
+                {% endfor %}
+              </select>
+              <label for="first-message">Message</label>
+              <textarea class="form-control" id="first-message" name="body" rows="3" maxlength="2000"></textarea>
+              <button class="button button-primary button-small" type="submit">{{ icon("send") }} Start conversation</button>
+            </form>
+            {% if role in ("admin", "teacher") %}
+              <form class="stack-form" method="post" action="{{ url_for('hub.create_group') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p class="eyebrow">New group</p>
+                <label for="group-title">Group name</label>
+                <input class="form-control" id="group-title" name="title" maxlength="100" required>
+                <label for="group-description">Description</label>
+                <input class="form-control" id="group-description" name="description" maxlength="300">
+                <label for="group-members">Members <small class="muted-text">(Ctrl/⌘ to pick several)</small></label>
+                <select class="form-control" id="group-members" name="member_ids" multiple size="6" required>
+                  {% for group_role, people in recipients|groupby("role") %}
+                    <optgroup label="{{ group_role|title }}s">
+                      {% for person in people %}<option value="{{ person.id }}">{{ person.full_name }}</option>{% endfor %}
+                    </optgroup>
+                  {% endfor %}
+                </select>
+                <button class="button button-secondary button-small" type="submit">{{ icon("users") }} Create group</button>
+              </form>
+            {% endif %}
+          </div>
+        </details>
+      </div>
+      {% if conversations %}
+        <ul class="conversation-list">
+          {% for conversation in conversations %}
+            <li>
+              <a class="conversation {% if current and current.id == conversation.id %}is-selected{% endif %}"
+                 href="{{ url_for('hub.messages', conversation_id=conversation.id) }}"
+                 {% if current and current.id == conversation.id %}aria-current="true"{% endif %}>
+                {{ avatar(conversation.title) }}
+                <span class="message-preview-copy">
+                  <span class="message-preview-top"><strong>{{ conversation.title }}</strong>
+                    {% if conversation.last_at %}<time datetime="{{ conversation.last_at.isoformat() }}">{{ conversation.last_at.strftime("%I:%M %p")|lower }}</time>{% endif %}</span>
+                  <span class="message-preview-body">{% if conversation.last_body %}{% if conversation.is_group and conversation.last_sender %}<b>{{ conversation.last_sender }}:</b> {% endif %}{{ conversation.last_body|truncate(90) }}{% else %}No messages yet.{% endif %}</span>
+                </span>
+                {% if conversation.unread %}<span class="count-pill" aria-label="{{ conversation.unread }} unread">{{ conversation.unread }}</span>{% endif %}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="widget-empty">{% if search %}No conversations match.{% else %}No conversations yet. Use + to start one.{% endif %}</p>
+      {% endif %}
+    </section>
+
+    <section class="chat-main" aria-labelledby="chat-title">
+      {% if current %}
+        <header class="chat-header">
+          <a class="icon-button icon-button-small chat-back" href="{{ url_for('hub.messages', q='') }}" aria-label="Back to conversations">{{ icon("chevron-left") }}</a>
+          {{ avatar(current.title) }}
+          <div><h2 id="chat-title">{{ current.title }}</h2>
+            <small class="muted-text">{% if current.is_group %}Group · {{ current.members|length }} members{% else %}{{ (current.members|rejectattr("id", "equalto", me)|first or {}).get("role", "")|title }}{% endif %}</small></div>
+        </header>
+        <ol class="chat-thread" aria-live="polite" data-chat-thread>
+          {% for message in current.messages %}
+            {% set mine = message.sender_id == me %}
+            <li class="chat-message {% if mine %}is-mine{% endif %}">
+              {% if not mine %}{{ avatar(message.sender, "avatar-small") }}{% endif %}
+              <div class="chat-bubble">
+                <div class="chat-bubble-head"><strong>{{ "You" if mine else message.sender }}</strong><small>{{ message.sender_role|title }}</small></div>
+                <p>{{ message.body }}</p>
+                <time datetime="{{ message.created_at.isoformat() }}">{{ message.created_at.strftime("%d %b, %I:%M %p") }}</time>
+              </div>
+            </li>
+          {% else %}
+            <li class="widget-empty">No messages yet. Say hello.</li>
+          {% endfor %}
+        </ol>
+        <form class="chat-compose" method="post" action="{{ url_for('hub.send_message', conversation_id=current.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="visually-hidden" for="chat-body">Type your message</label>
+          <textarea class="form-control" id="chat-body" name="body" rows="1" maxlength="2000" required placeholder="Type your message" data-enter-submit></textarea>
+          <button class="round-button round-button-primary" type="submit" aria-label="Send message">{{ icon("send") }}</button>
+        </form>
+      {% else %}
+        <div class="empty-state chat-empty">{{ icon("message") }}<p>Select a conversation or start a new one.</p></div>
+      {% endif %}
+    </section>
+
+    {% if current and current.is_group %}
+      <aside class="chat-info" aria-labelledby="group-info-title">
+        <h2 id="group-info-title">Group info</h2>
+        <div class="chat-info-hero">{{ avatar(current.title, "avatar-xl") }}<strong>{{ current.title }}</strong><small>Group · {{ current.members|length }} members</small></div>
+        {% if current.description %}<p class="eyebrow">Description</p><p class="muted-text">{{ current.description }}</p>{% endif %}
+        <p class="eyebrow">Members</p>
+        <ul class="member-list">
+          {% for member in current.members %}
+            <li>{{ avatar(member.full_name, "avatar-small") }}<span><strong>{{ member.full_name }}</strong><small>{{ member.role|title }}</small></span></li>
+          {% endfor %}
+        </ul>
+      </aside>
+    {% endif %}
+  </div>
+{% endblock %}

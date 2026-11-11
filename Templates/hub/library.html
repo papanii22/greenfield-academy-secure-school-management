@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import pagination, status_badge %}
+
+{% block title %}Library | Greenfield Academy{% endblock %}
+{% block page_title %}Library{% endblock %}
+
+{% block content %}
+  {% set is_admin = session.get("role") == "admin" %}
+  <section class="panel glass-card page-panel" aria-labelledby="library-title">
+    <div class="page-toolbar">
+      <h2 id="library-title">All books <small class="muted-text">({{ result.total }})</small></h2>
+      <form class="toolbar-filters" method="get" action="{{ url_for('hub.library') }}" role="search">
+        <div class="inline-search">
+          <label class="visually-hidden" for="book-search">Search by ID, name or subject</label>
+          {{ icon("search") }}
+          <input class="form-control" id="book-search" type="search" name="q" maxlength="100" value="{{ search }}" placeholder="Search by ID, name or subject">
+        </div>
+        <label class="visually-hidden" for="book-status">Status</label>
+        <select class="form-control pill-select" id="book-status" name="status" data-auto-submit>
+          <option value="">All books</option>
+          <option value="available" {% if status == "available" %}selected{% endif %}>Available</option>
+          <option value="checked_out" {% if status == "checked_out" %}selected{% endif %}>Checked out</option>
+        </select>
+      </form>
+    </div>
+
+    {% if is_admin %}
+      <details class="add-panel">
+        <summary class="button button-primary button-small">{{ icon("plus") }} Add a book</summary>
+        <form class="form-grid" method="post" action="{{ url_for('hub.create_book') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-field"><label for="book-code">Book ID</label><input class="form-control" id="book-code" name="code" maxlength="30" required placeholder="2024-LIT-001-01"></div>
+          <div class="form-field form-field-wide"><label for="book-title">Book name</label><input class="form-control" id="book-title" name="title" maxlength="200" required></div>
+          <div class="form-field"><label for="book-author">Writer</label><input class="form-control" id="book-author" name="author" maxlength="120" required></div>
+          <div class="form-field"><label for="book-subject">Subject</label><input class="form-control" id="book-subject" name="subject" maxlength="100" required></div>
+          <div class="form-field"><label for="book-classes">Class(es)</label><input class="form-control" id="book-classes" name="classes" maxlength="60" placeholder="Year 10–12"></div>
+          <div class="form-field"><label for="book-year">Publish year</label><input class="form-control" id="book-year" name="publish_year" type="number" min="1400" max="2100"></div>
+          <div class="form-actions form-field-wide"><button class="button button-primary" type="submit">Add book</button></div>
+        </form>
+      </details>
+    {% endif %}
+
+    {% if result.rows %}
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Book ID</th><th>Book name</th><th>Writer</th><th>Subject</th><th>Class(es)</th><th>Publish date</th><th>Status</th>{% if is_admin %}<th>Action</th>{% endif %}</tr></thead>
+        <tbody>
+          {% for book in result.rows %}
+            <tr>
+              <td>{{ book.code }}</td>
+              <td><div class="book-cell"><span class="book-spine tone-{{ book.id % 4 }}" aria-hidden="true">{{ icon("book") }}</span><strong>{{ book.title }}</strong></div></td>
+              <td>{{ book.author }}</td>
+              <td>{{ book.subject }}</td>
+              <td>{{ book.classes or "—" }}</td>
+              <td>{{ book.publish_year or "—" }}</td>
+              <td>{{ status_badge(book.status) }}</td>
+              {% if is_admin %}
+                <td class="table-actions">
+                  <form method="post" action="{{ url_for('hub.set_book_status', book_id=book.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="status" value="{{ 'checked_out' if book.status == 'available' else 'available' }}">
+                    <button class="button button-ghost button-small" type="submit">{{ "Check out" if book.status == "available" else "Return" }}</button>
+                  </form>
+                  <form method="post" action="{{ url_for('hub.delete_book', book_id=book.id) }}" data-confirm="Remove {{ book.title }} from the library?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="icon-button icon-button-small" type="submit" aria-label="Remove {{ book.title }}">{{ icon("trash") }}</button>
+                  </form>
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {{ pagination(result, true) }}
+    {% else %}
+      <div class="empty-state">{{ icon("book") }}<p>{% if search %}No books match “{{ search }}”.{% else %}The library catalogue is empty.{% endif %}</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

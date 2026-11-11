@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import avatar, pagination %}
+
+{% block title %}Teachers | Greenfield Academy{% endblock %}
+{% block page_title %}Teachers{% endblock %}
+
+{% block content %}
+  <section class="panel glass-card page-panel" aria-labelledby="teachers-title">
+    <div class="page-toolbar">
+      <h2 id="teachers-title">All teachers list <small class="muted-text">({{ result.total }})</small></h2>
+      <form class="inline-search" method="get" action="{{ url_for('hub.teachers') }}" role="search">
+        <label class="visually-hidden" for="teacher-search">Search by ID, name or subject</label>
+        {{ icon("search") }}
+        <input class="form-control" id="teacher-search" type="search" name="q" maxlength="100"
+               value="{{ search }}" placeholder="Search by ID, name, or subject">
+      </form>
+      <a class="round-button" href="{{ url_for('admin.create_user') }}" aria-label="Add a teacher" title="Add a teacher">{{ icon("plus") }}</a>
+    </div>
+    {% if result.rows %}
+      <div class="table-wrap"><table class="data-table people-table">
+        <thead><tr><th>Teacher name</th><th>School ID</th><th>Subject</th><th>Class(es)</th><th>Phone number</th><th>Address</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for teacher in result.rows %}
+            <tr {% if not teacher.is_active %}class="is-inactive"{% endif %}>
+              <td><div class="person">{{ avatar(teacher.full_name) }}<div class="person-copy"><strong>{{ teacher.full_name }}</strong><small>{{ teacher.email }}</small></div></div></td>
+              <td>{{ teacher.email.split("@")[0] }}</td>
+              <td>{{ teacher.subjects or "—" }}</td>
+              <td class="wrap-cell">{{ teacher.classes or "—" }}</td>
+              <td>{{ teacher.phone or "—" }}</td>
+              <td class="wrap-cell">{{ teacher.address or "—" }}</td>
+              <td class="table-actions">
+                <a class="icon-button icon-button-small" href="{{ url_for('admin.edit_user', user_id=teacher.id) }}" aria-label="Edit {{ teacher.full_name }}">{{ icon("edit") }}</a>
+                <form method="post" action="{{ url_for('admin.set_user_status', user_id=teacher.id, action='deactivate' if teacher.is_active else 'activate') }}"
+                      data-confirm="{{ 'Deactivate' if teacher.is_active else 'Reactivate' }} {{ teacher.full_name }}'s account?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="icon-button icon-button-small" type="submit" aria-label="{{ 'Deactivate' if teacher.is_active else 'Reactivate' }} {{ teacher.full_name }}">{{ icon("trash" if teacher.is_active else "check") }}</button>
+                </form>
+                <form method="post" action="{{ url_for('hub.new_conversation') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="recipient_id" value="{{ teacher.id }}">
+                  <button class="icon-button icon-button-small" type="submit" aria-label="Message {{ teacher.full_name }}">{{ icon("message") }}</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {{ pagination(result, true) }}
+    {% else %}
+      <div class="empty-state">{{ icon("users") }}<p>{% if search %}No teachers match “{{ search }}”.{% else %}No teacher accounts exist yet.{% endif %}</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

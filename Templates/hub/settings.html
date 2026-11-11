@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Settings | Greenfield Academy{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+  <div class="settings-grid">
+    <section class="glass-card widget-card" aria-labelledby="security-title">
+      <div class="card-head"><h2 id="security-title">Security</h2></div>
+      <ul class="settings-list">
+        <li><span>{{ icon("lock") }}<span><strong>Password</strong><small>Change the password you sign in with.</small></span></span>
+          <a class="button button-secondary button-small" href="{{ url_for('auth.change_password') }}">Change</a></li>
+        <li><span>{{ icon("shield") }}<span><strong>Two-step verification</strong><small>{{ "Enabled with an authenticator app. It is required for every account." if profile and profile.mfa_enabled else "Required. You will be asked to set it up at sign-in." }}</small></span></span>
+          <span class="badge badge-success">Required</span></li>
+        <li><span>{{ icon("key") }}<span><strong>API token</strong><small>A read-only token that expires after 15 minutes.</small></span></span>
+          <form method="post" action="{{ url_for('auth.create_api_token') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="button button-secondary button-small" type="submit">Generate</button>
+          </form></li>
+      </ul>
+    </section>
+    <section class="glass-card widget-card" aria-labelledby="appearance-title">
+      <div class="card-head"><h2 id="appearance-title">Appearance</h2></div>
+      <ul class="settings-list">
+        <li><span>{{ icon("sun") }}<span><strong>Theme</strong><small>Switch between light and dark. Saved on this device.</small></span></span>
+          <button class="button button-secondary button-small" type="button" data-theme-toggle aria-pressed="false">Toggle theme</button></li>
+      </ul>
+    </section>
+    <section class="glass-card widget-card" aria-labelledby="account-title">
+      <div class="card-head"><h2 id="account-title">Account</h2></div>
+      <ul class="settings-list">
+        <li><span>{{ icon("user") }}<span><strong>Profile</strong><small>Phone, address, date of birth and a short bio.</small></span></span>
+          <a class="button button-secondary button-small" href="{{ url_for('hub.profile') }}">Edit</a></li>
+        <li><span>{{ icon("log-out") }}<span><strong>Sign out</strong><small>End this session on this device.</small></span></span>
+          <form method="post" action="{{ url_for('auth.logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="button button-secondary button-small" type="submit">Sign out</button>
+          </form></li>
+      </ul>
+    </section>
+  </div>
+{% endblock %}

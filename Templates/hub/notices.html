@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import pagination %}
+
+{% block title %}Notice board | Greenfield Academy{% endblock %}
+{% block page_title %}Notice board{% endblock %}
+
+{% block content %}
+  {% set role = session.get("role") %}
+  <section class="panel glass-card page-panel" aria-labelledby="notices-title">
+    <div class="page-toolbar">
+      <h2 id="notices-title">Notice board</h2>
+      <form class="inline-search" method="get" action="{{ url_for('hub.notices') }}" role="search">
+        <label class="visually-hidden" for="notice-search">Search by title or author</label>
+        {{ icon("search") }}
+        <input class="form-control" id="notice-search" type="search" name="q" maxlength="100" value="{{ search }}" placeholder="Search by title or author">
+      </form>
+    </div>
+
+    {% if role in ("admin", "teacher") %}
+      <details class="add-panel">
+        <summary class="button button-primary button-small">{{ icon("plus") }} Post a notice</summary>
+        <form class="form-grid" method="post" action="{{ url_for('hub.create_notice') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-field form-field-wide"><label for="notice-title">Title</label><input class="form-control" id="notice-title" name="title" maxlength="150" required></div>
+          <div class="form-field form-field-wide"><label for="notice-body">Notice</label><textarea class="form-control" id="notice-body" name="body" rows="5" maxlength="5000" required></textarea></div>
+          <div class="form-field"><label for="notice-audience">Audience</label>
+            <select class="form-control" id="notice-audience" name="audience">
+              <option value="all">Everyone</option><option value="teachers">Teachers</option><option value="students">Students</option>
+            </select></div>
+          <div class="form-field"><label for="notice-tags">Tags <small class="muted-text">(comma separated)</small></label><input class="form-control" id="notice-tags" name="tags" maxlength="120" placeholder="School, Academic"></div>
+          <div class="form-actions form-field-wide"><button class="button button-primary" type="submit">Publish notice</button></div>
+        </form>
+      </details>
+    {% endif %}
+
+    {% if result.rows %}
+      <div class="split-view">
+        <ul class="notice-list">
+          {% for notice in result.rows %}
+            <li>
+              <a class="notice-card {% if selected and selected.id == notice.id %}is-selected{% endif %}"
+                 href="{{ url_for('hub.notices', notice=notice.id, q=search or None, page=result.page if result.page > 1 else None) }}"
+                 {% if selected and selected.id == notice.id %}aria-current="true"{% endif %}>
+                <span class="notice-thumb" aria-hidden="true">{{ icon("megaphone") }}</span>
+                <span class="notice-card-copy">
+                  <span class="notice-card-head"><strong>{{ notice.title }}</strong>
+                    <span class="notice-meta"><span class="date-pill">{{ notice.created_at.strftime("%B %d, %Y") }}</span><span class="view-count">{{ icon("eye") }} {{ notice.views }}</span></span></span>
+                  <small>By {{ notice.author }}{% if notice.audience != "all" %} · {{ notice.audience|title }} only{% endif %}</small>
+                  <span class="notice-excerpt">{{ notice.body|truncate(180) }}</span>
+                </span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+        {% if selected %}
+          <article class="notice-detail" aria-labelledby="notice-detail-title">
+            <div class="notice-hero" aria-hidden="true">{{ icon("megaphone") }}</div>
+            <h3 id="notice-detail-title">{{ selected.title }}</h3>
+            <p class="muted-text">By {{ selected.author }}</p>
+            <p class="notice-meta"><span class="date-pill">{{ selected.created_at.strftime("%B %d, %Y") }}</span><span class="view-count">{{ icon("eye") }} {{ selected.views }}</span></p>
+            <div class="notice-body">{% for paragraph in selected.body.split("\n") if paragraph.strip() %}<p>{{ paragraph }}</p>{% endfor %}</div>
+            {% set tags = selected.tags.split(",")|map("trim")|reject("equalto", "")|list %}
+            {% if tags %}
+              <p class="eyebrow">Tag</p>
+              <ul class="tag-list">{% for tag in tags %}<li class="tag tone-{{ loop.index % 3 }}">{{ tag }}</li>{% endfor %}</ul>
+            {% endif %}
+            {% if role == "admin" or selected.author_id == session.get("user_id") %}
+              <form method="post" action="{{ url_for('hub.delete_notice', notice_id=selected.id) }}" data-confirm="Delete this notice?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="button button-secondary button-small" type="submit">{{ icon("trash") }} Delete notice</button>
+              </form>
+            {% endif %}
+          </article>
+        {% endif %}
+      </div>
+      {{ pagination(result) }}
+    {% else %}
+      <div class="empty-state">{{ icon("megaphone") }}<p>{% if search %}No notices match “{{ search }}”.{% else %}No notices have been posted yet.{% endif %}</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

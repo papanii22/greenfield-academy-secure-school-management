@@ -18,6 +18,18 @@ def app():
     yield test_app
 
 
+@pytest.fixture(autouse=True)
+def empty_hub_widgets(monkeypatch):
+    """Dashboards load hub widgets from the database; tests use empty ones."""
+    from database import hub
+
+    monkeypatch.setattr(
+        hub,
+        "dashboard_widgets",
+        lambda _user_id, role, _term, *_args: hub.empty_widgets(role),
+    )
+
+
 @pytest.fixture
 def client(app):
     return app.test_client()
