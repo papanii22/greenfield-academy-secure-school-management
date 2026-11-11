@@ -29,6 +29,7 @@ from wtforms.validators import InputRequired, Length, Optional, Regexp
 from Routes.auth import role_required
 from Routes.validation import parse_page, parse_term
 from database import accounts
+from database import hub
 from database import school
 from grading import grade_for
 from reporting import MAX_REPORT_ROWS, report_response
@@ -102,6 +103,7 @@ def index() -> str:
     return render_template(
         "admin/dashboard.html",
         dashboard=dashboard,
+        widgets=hub.dashboard_widgets(session["user_id"], "admin", term),
         role_label="Administrator",
         with_charts=True,
     )

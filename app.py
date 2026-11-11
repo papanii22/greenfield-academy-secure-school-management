@@ -3,6 +3,9 @@ import csv
 import hashlib
 import os
 import secrets
+from pathlib import Path
+from typing import Any
+
 from argon2 import PasswordHasher
 from flask import Flask, g, jsonify, render_template, request, session
 from flask_wtf.csrf import CSRFError, CSRFProtect
@@ -13,9 +16,11 @@ from werkzeug.security import safe_join
 from Routes.admin import admin_bp
 from Routes.api import api_bp
 from Routes.auth import auth_bp
+from Routes.hub import hub_bp
 from Routes.main import main_bp
 from Routes.teacher import teacher_bp
 from config import Config
+from database import hub
 from database.db import connect_database, record_audit_event
 from extensions import limiter
 
@@ -193,6 +198,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.register_blueprint(admin_bp)
     app.register_blueprint(teacher_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(hub_bp)
     limiter.init_app(app)
 
     static_versions: dict[str, tuple[int, str]] = {}
@@ -226,10 +232,22 @@ def create_app(test_config: dict | None = None) -> Flask:
         return jsonify({"status": "ok"})
 
     @app.context_processor
-    def template_context() -> dict[str, str | bool]:
+    def template_context() -> dict[str, Any]:
+        def nav_counts() -> dict[str, int]:
+            """Unread badges for the top bar, loaded only when a page shows them."""
+            if "nav_counts" not in g:
+                signed_in = session.get("user_id") and session.get("mfa_verified")
+                g.nav_counts = (
+                    hub.nav_counts(session["user_id"], session.get("role", ""))
+                    if signed_in and not app.testing
+                    else {"messages": 0, "notices": 0}
+                )
+            return g.nav_counts
+
         return {
             "csp_nonce": g.csp_nonce,
             "show_branded_loader": bool(session.pop("show_branded_loader", False)),
+            "nav_counts": nav_counts,
         }
 
     @app.after_request
@@ -484,6 +502,79 @@ def create_app(test_config: dict | None = None) -> Flask:
                 taken.add(candidate)
                 index_numbers.append(candidate)
         return index_numbers
+
+    @app.cli.command("seed-hub-data")
+    @click.option("--output-dir", default="seed_data", show_default=True,
+                  type=click.Path(file_okay=False, writable=True),
+                  help="Folder that receives the generated CSV files.")
+    @click.option("--weeks", default=8, show_default=True, type=click.IntRange(1, 52),
+                  help="How many weeks of attendance to generate.")
+    @click.option("--seed", default=2026, show_default=True, type=int,
+                  help="Random seed, so the same command gives the same files.")
+    @click.option("--generate-only", is_flag=True, help="Write the CSVs without importing.")
+    @click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+    def seed_hub_data(output_dir: str, weeks: int, seed: int, generate_only: bool,
+                      yes: bool) -> None:
+        """Generate fictional gender, attendance, fee, payment and expense CSVs
+        from the existing students, then import them."""
+        from database import seed_hub
+
+        out_dir = Path(output_dir)
+        click.echo(
+            f"This writes gender.csv, attendance.csv ({weeks} weeks), fees.csv, "
+            f"payments.csv and expenses.csv to {out_dir}"
+            + ("." if generate_only else
+               " and imports them into the configured database. Existing attendance, "
+               "fee records and profile genders are kept; only missing rows are added.")
+        )
+        if not yes and not click.confirm("Continue?", default=False):
+            click.echo("Cancelled.")
+            return
+        counts = seed_hub.generate_csvs(out_dir, weeks=weeks, seed=seed)
+        for name, count in counts.items():
+            click.echo(f"  {name}.csv: {count} rows written")
+        if generate_only:
+            return
+        _echo_import_report(seed_hub.import_csvs(out_dir, _seed_actor_id()))
+
+    @app.cli.command("import-hub-csv")
+    @click.argument("csv_dir", type=click.Path(exists=True, file_okay=False))
+    @click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+    def import_hub_csv(csv_dir: str, yes: bool) -> None:
+        """Import gender/attendance/fees/payments/expenses CSVs from a folder.
+        Only the files that exist are imported; see database/seed_hub.py for columns."""
+        from database import seed_hub
+
+        in_dir = Path(csv_dir)
+        present = [name for name in seed_hub.FILES if (in_dir / name).exists()]
+        if not present:
+            raise click.ClickException(
+                f"None of {', '.join(seed_hub.FILES)} were found in {in_dir}."
+            )
+        click.echo(f"Importing {', '.join(present)} from {in_dir} into the configured database.")
+        if not yes and not click.confirm("Continue?", default=False):
+            click.echo("Cancelled.")
+            return
+        try:
+            report = seed_hub.import_csvs(in_dir, _seed_actor_id())
+        except ValueError as error:
+            raise click.ClickException(str(error)) from error
+        _echo_import_report(report)
+
+    def _seed_actor_id() -> int | None:
+        """The first active administrator, recorded as who created seeded fee rows."""
+        with connect_database() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id FROM users WHERE role = 'admin' AND is_active ORDER BY id LIMIT 1"
+                )
+                row = cursor.fetchone()
+        return row["id"] if row else None
+
+    def _echo_import_report(report: dict[str, dict[str, int]]) -> None:
+        for name, numbers in report.items():
+            summary = ", ".join(f"{key.replace('_', ' ')} {value}" for key, value in numbers.items())
+            click.echo(f"  {name}: {summary}")
 
     @app.cli.command("seed-teachers")
     @click.option("--per-subject", default=2, show_default=True, type=click.IntRange(1, 10))

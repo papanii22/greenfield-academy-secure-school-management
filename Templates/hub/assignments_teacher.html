@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import pagination, status_badge %}
+
+{% block title %}Assignments | Greenfield Academy{% endblock %}
+{% block page_title %}Assignments{% endblock %}
+
+{% block content %}
+  <div class="widget-row widget-row-1-2">
+    <section class="glass-card widget-card" aria-labelledby="new-assignment-title">
+      <div class="card-head"><h2 id="new-assignment-title">New assignment</h2></div>
+      {% if options %}
+        <form class="stack-form" method="post" action="{{ url_for('hub.create_assignment') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-field"><label for="assignment-target">Class and subject</label>
+            <select class="form-control" id="assignment-target" name="target" required>
+              {% for option in options %}<option value="{{ option.class_id }}:{{ option.subject_id }}">{{ option.class_name }} · {{ option.subject_name }}</option>{% endfor %}
+            </select></div>
+          <div class="form-field"><label for="assignment-title">Task name</label><input class="form-control" id="assignment-title" name="title" maxlength="150" required></div>
+          <div class="form-field"><label for="assignment-description">Description</label><textarea class="form-control" id="assignment-description" name="description" rows="3" maxlength="1000"></textarea></div>
+          <div class="form-pair">
+            <div class="form-field"><label for="assignment-due">Due date</label><input class="form-control" id="assignment-due" name="due_date" type="date" required></div>
+            <div class="form-field"><label for="assignment-time">Time</label><input class="form-control" id="assignment-time" name="due_time" type="time" value="09:00"></div>
+          </div>
+          <button class="button button-primary" type="submit">{{ icon("plus") }} Create assignment</button>
+        </form>
+      {% else %}
+        <p class="widget-empty">You have no class and subject assignments yet. An administrator assigns these.</p>
+      {% endif %}
+    </section>
+    <section class="glass-card widget-card" aria-labelledby="my-assignments-title">
+      <div class="card-head"><h2 id="my-assignments-title">Your assignments</h2></div>
+      {% if assignments %}
+        <ul class="assignment-list">
+          {% for item in assignments %}
+            <li>
+              <div><strong>{{ item.title }}</strong><small>{{ item.class_name }} · {{ item.subject_name }} · due {{ item.due_at.strftime("%d %b %Y, %I:%M %p") }}</small>
+                <meter min="0" max="{{ item.class_size or 1 }}" value="{{ item.handed_in }}" aria-label="{{ item.handed_in }} of {{ item.class_size }} handed in">{{ item.handed_in }}/{{ item.class_size }}</meter>
+                <small class="muted-text">{{ item.handed_in }} of {{ item.class_size }} handed in</small></div>
+              <form method="post" action="{{ url_for('hub.delete_assignment', assignment_id=item.id) }}" data-confirm="Delete {{ item.title }} and its submissions?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="icon-button icon-button-small" type="submit" aria-label="Delete {{ item.title }}">{{ icon("trash") }}</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="widget-empty">No assignments yet.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="panel glass-card page-panel" aria-labelledby="submissions-title">
+    <div class="page-toolbar">
+      <h2 id="submissions-title">Student tasks</h2>
+      <form class="inline-search" method="get" action="{{ url_for('hub.assignments') }}" role="search">
+        <label class="visually-hidden" for="submission-search">Search by student, topic or task</label>
+        {{ icon("search") }}
+        <input class="form-control" id="submission-search" type="search" name="q" maxlength="100" value="{{ search }}" placeholder="Search by topic">
+      </form>
+    </div>
+    {% if submissions.rows %}
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Student name</th><th>Topic</th><th>Task name</th><th>Due date</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for row in submissions.rows %}
+            <tr>
+              <td><div class="person-copy"><strong>{{ row.full_name }}</strong><small>{{ row.class_name }}</small></div></td>
+              <td>{{ row.subject_name }}</td>
+              <td>{{ row.title }}</td>
+              <td>{{ row.due_at.strftime("%B %d, %Y") }}</td>
+              <td>{{ status_badge(row.status) }}</td>
+              <td class="table-actions">
+                {% if row.status == "submitted" %}
+                  <form method="post" action="{{ url_for('hub.review_submission', assignment_id=row.assignment_id, student_id=row.student_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="button button-ghost button-small" type="submit">{{ icon("check") }} Mark reviewed</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {{ pagination(submissions) }}
+    {% else %}
+      <div class="empty-state">{{ icon("clipboard-list") }}<p>{% if search %}Nothing matches “{{ search }}”.{% else %}Student progress appears here once you create an assignment.{% endif %}</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

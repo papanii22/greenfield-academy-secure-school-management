@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import agenda, event_time %}
+
+{% block title %}Calendar | Greenfield Academy{% endblock %}
+{% block page_title %}Calendar{% endblock %}
+
+{% macro event_chip(event) -%}
+  <span class="event-chip tone-{{ event.category }}" title="{{ event.title }} · {{ event_time(event) }}">{{ event.title }}</span>
+{%- endmacro %}
+
+{% block content %}
+  {% set role = session.get("role") %}
+  {% set can_edit = role in ("admin", "teacher") %}
+  <div class="calendar-layout">
+    <section class="panel glass-card page-panel calendar-panel" aria-labelledby="calendar-title">
+      <div class="calendar-toolbar">
+        <nav class="segmented" aria-label="Calendar view">
+          {% for value in ("month", "week", "day") %}
+            <a class="{% if view == value %}is-active{% endif %}" {% if view == value %}aria-current="page"{% endif %}
+               href="{{ url_for('hub.calendar_view', view=value, day=selected.isoformat()) }}">{{ value|title }}</a>
+          {% endfor %}
+        </nav>
+        <h2 id="calendar-title">
+          {% if view == "month" %}{{ grid.label }}
+          {% elif view == "week" %}{{ week[0].date.strftime("%d %b") }} – {{ week[-1].date.strftime("%d %b %Y") }}
+          {% else %}{{ selected.strftime("%A %d %B %Y") }}{% endif %}
+        </h2>
+        {% set step = {"month": None, "week": 7, "day": 1}[view] %}
+        {% set prev_day = grid.previous if view == "month" else selected - timedelta(days=step) %}
+        {% set next_day = grid.next if view == "month" else selected + timedelta(days=step) %}
+        <div class="calendar-nav">
+          <a class="button button-ghost button-small" href="{{ url_for('hub.calendar_view', view=view) }}">Today</a>
+          <a class="icon-button icon-button-small" href="{{ url_for('hub.calendar_view', view=view, day=prev_day.isoformat()) }}" aria-label="Previous {{ view }}">{{ icon("chevron-left") }}</a>
+          <a class="icon-button icon-button-small" href="{{ url_for('hub.calendar_view', view=view, day=next_day.isoformat()) }}" aria-label="Next {{ view }}">{{ icon("chevron-right") }}</a>
+        </div>
+      </div>
+
+      {% if view == "month" %}
+        <div class="table-wrap calendar-wrap"><table class="month-grid">
+          <thead><tr>{% for name in ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat") %}<th scope="col">{{ name|upper }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for week_row in grid.weeks %}
+              <tr>
+                {% for day in week_row %}
+                  <td class="{% if not day.in_month %}is-outside{% endif %} {% if day.date == grid.today %}is-today{% endif %} {% if day.date == selected %}is-selected{% endif %}">
+                    <a class="day-number" href="{{ url_for('hub.calendar_view', view='day', day=day.date.isoformat()) }}"
+                       aria-label="{{ day.date.strftime('%A %d %B') }}{% if day.events %}, {{ day.events|length }} event{{ 's' if day.events|length != 1 }}{% endif %}">{{ "%02d"|format(day.date.day) }}</a>
+                    {% if day.events|length > 2 %}<span class="more-pill">{{ day.events|length - 2 }} more</span>{% endif %}
+                    <div class="day-events">{% for event in day.events[:2] %}{{ event_chip(event) }}{% endfor %}</div>
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      {% elif view == "week" %}
+        <ol class="week-list">
+          {% for day in week %}
+            <li class="{% if day.date == grid.today %}is-today{% endif %}">
+              <a class="week-day" href="{{ url_for('hub.calendar_view', view='day', day=day.date.isoformat()) }}"><strong>{{ day.date.strftime("%a") }}</strong><span>{{ day.date.strftime("%d") }}</span></a>
+              <div class="week-events">
+                {% for event in day.events %}
+                  <div class="event-row tone-{{ event.category }}"><strong>{{ event.title }}</strong><small>{{ event_time(event) }}</small></div>
+                {% else %}<span class="muted-text">No events</span>{% endfor %}
+              </div>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        {% if day_events %}
+          <ul class="day-detail">
+            {% for event in day_events %}
+              <li class="event-card tone-{{ event.category }}">
+                <div><small>{{ event_time(event) }} · {{ event.category|title }}{% if event.audience != "all" %} · {{ event.audience|title }}{% endif %}</small>
+                  <strong>{{ event.title }}</strong>
+                  {% if event.description %}<p>{{ event.description }}</p>{% endif %}
+                  <small class="muted-text">Added by {{ event.creator }}</small></div>
+                {% if role == "admin" or event.created_by == session.get("user_id") %}
+                  <form method="post" action="{{ url_for('hub.delete_event', event_id=event.id) }}" data-confirm="Delete {{ event.title }}?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="icon-button icon-button-small" type="submit" aria-label="Delete {{ event.title }}">{{ icon("trash") }}</button>
+                  </form>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty-state">{{ icon("calendar") }}<p>Nothing is scheduled for this day.</p></div>
+        {% endif %}
+      {% endif %}
+    </section>
+
+    <aside class="dashboard-aside" aria-label="Agenda">
+      <section class="glass-card widget-card">
+        <div class="card-head"><h2>Agenda</h2></div>
+        {{ agenda(agenda_events) }}
+      </section>
+      {% if view != "day" %}
+        <section class="glass-card widget-card">
+          <div class="card-head"><h2>{{ selected.strftime("%B %d, %Y") }}</h2></div>
+          {% if day_events %}
+            <ul class="day-detail day-detail-compact">
+              {% for event in day_events %}
+                <li class="event-card tone-{{ event.category }}"><div><small>{{ event_time(event) }}</small><strong>{{ event.title }}</strong>{% if event.description %}<p>{{ event.description }}</p>{% endif %}</div></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="widget-empty">No events on this day.</p>
+          {% endif %}
+        </section>
+      {% endif %}
+      {% if can_edit %}
+        <section class="glass-card widget-card">
+          <div class="card-head"><h2>Add event</h2></div>
+          <form class="stack-form" method="post" action="{{ url_for('hub.create_event') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-field"><label for="event-title">Title</label><input class="form-control" id="event-title" name="title" maxlength="150" required></div>
+            <div class="form-field"><label for="event-date">Date</label><input class="form-control" id="event-date" name="event_date" type="date" value="{{ selected.isoformat() }}" required></div>
+            <div class="form-pair">
+              <div class="form-field"><label for="event-start">Start</label><input class="form-control" id="event-start" name="start_time" type="time"></div>
+              <div class="form-field"><label for="event-end">End</label><input class="form-control" id="event-end" name="end_time" type="time"></div>
+            </div>
+            <div class="form-pair">
+              <div class="form-field"><label for="event-category">Category</label>
+                <select class="form-control" id="event-category" name="category">{% for value in categories %}<option value="{{ value }}">{{ value|title }}</option>{% endfor %}</select></div>
+              <div class="form-field"><label for="event-audience">Audience</label>
+                <select class="form-control" id="event-audience" name="audience"><option value="all">Everyone</option><option value="teachers">Teachers</option><option value="students">Students</option></select></div>
+            </div>
+            <div class="form-field"><label for="event-description">Description</label><textarea class="form-control" id="event-description" name="description" rows="3" maxlength="500"></textarea></div>
+            <button class="button button-primary" type="submit">{{ icon("plus") }} Add to calendar</button>
+          </form>
+        </section>
+      {% endif %}
+    </aside>
+  </div>
+{% endblock %}

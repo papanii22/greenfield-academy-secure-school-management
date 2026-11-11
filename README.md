@@ -103,6 +103,30 @@ teacher workloads, so the seed command does not create curriculum-wide
 teacher-subject assignments. Review the configured database and back it up
 before running the command against data you need to preserve.
 
+## School hub features
+
+Every role shares one shell: a sidebar for the role's pages, plus top-bar
+search, message and notice badges. The pages are:
+
+| Page | Admin | Teacher | Student |
+| --- | --- | --- | --- |
+| Dashboard | stat tiles, student gender, weekly attendance, earnings, fees, top performers, notices, audit activity | classes, attendance donut, performance by class, to-do tasks, teaching activity, student task status | profile card, tiles, GPA gauge, score trend, grades by subject, assignments, fees |
+| Teachers (`/teachers`) | list, search, edit, deactivate, message | — | — |
+| Students (`/students`) | all students | own classes | — |
+| Attendance (`/attendance`) | any class, 14-day grid | own classes, link to mark | own record |
+| Finance (`/finance/fees`, `/finance/expenses`) | fee records, payments, expenses, monthly charts | — | own fees (read only) |
+| Notices (`/notices`) | post, delete any | post, delete own | read |
+| Calendar (`/calendar`) | month/week/day, add, delete any | add, delete own | read |
+| Library (`/library`) | add, check out/return, remove | browse | browse |
+| Messages (`/messages`) | direct chats and groups | direct chats and groups | direct chats with staff only |
+| Assignments (`/assignments`) | — | create for assigned class/subject, review | track status |
+| Profile, Settings | all roles | all roles | all roles |
+
+Before using these pages on an existing database, review and run
+`database/migration_school_hub.sql` (after `migration_signup_reset.sql`) in the
+Supabase SQL Editor. It only creates tables and indexes and can be run more
+than once. Until it runs, dashboards show a notice and empty hub panels.
+
 ## Run tests
 
 ```powershell

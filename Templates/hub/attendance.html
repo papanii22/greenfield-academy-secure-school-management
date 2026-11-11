@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+
+{% block title %}Attendance | Greenfield Academy{% endblock %}
+{% block page_title %}Attendance{% endblock %}
+
+{% block content %}
+  {% set role = session.get("role") %}
+  <section class="panel glass-card page-panel" aria-labelledby="attendance-title">
+    <div class="page-toolbar">
+      <h2 id="attendance-title">Attendance register</h2>
+      <form class="toolbar-filters" method="get" action="{{ url_for('hub.attendance') }}">
+        <label class="visually-hidden" for="attendance-start">Starting from</label>
+        <input class="form-control pill-select" id="attendance-start" type="date" name="start"
+               value="{{ start.isoformat() }}" data-auto-submit>
+        {% if role != "student" and grid.classes %}
+          <label class="visually-hidden" for="attendance-class">Class</label>
+          <select class="form-control pill-select" id="attendance-class" name="class_id" data-auto-submit>
+            {% for item in grid.classes %}
+              <option value="{{ item.id }}" {% if grid.class_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+        <noscript><button class="button button-secondary button-small" type="submit">Show</button></noscript>
+      </form>
+      {% if grid.can_mark %}
+        <a class="button button-primary button-small" href="{{ url_for('teacher.attendance', class_id=grid.class_id) }}">{{ icon("calendar-check") }} Mark today</a>
+      {% endif %}
+    </div>
+    <p class="chart-summary">{{ grid.dates[0].strftime("%d %B %Y") }} to {{ grid.dates[-1].strftime("%d %B %Y") }}. Weekends are shaded.</p>
+    {% if grid.rows %}
+      <div class="table-wrap"><table class="data-table attendance-grid">
+        <caption class="visually-hidden">Attendance for each student and day</caption>
+        <thead><tr><th scope="col">Student name</th>
+          {% for day in grid.dates %}
+            <th scope="col" class="{% if day.weekday() >= 5 %}is-weekend{% endif %}" abbr="{{ day.strftime('%A %d %B') }}">{{ day.strftime("%d") }}<small>{{ day.strftime("%a")[:2] }}</small></th>
+          {% endfor %}
+        </tr></thead>
+        <tbody>
+          {% for row in grid.rows %}
+            <tr>
+              <th scope="row">{{ row.full_name }}</th>
+              {% for cell in row.cells %}
+                {% set day = grid.dates[loop.index0] %}
+                <td class="{% if day.weekday() >= 5 %}is-weekend{% endif %}">
+                  {% if cell == "present" %}<span class="mark mark-present" title="Present">{{ icon("check") }}<span class="visually-hidden">Present</span></span>
+                  {% elif cell == "late" %}<span class="mark mark-late" title="Late">{{ icon("clock") }}<span class="visually-hidden">Late</span></span>
+                  {% elif cell == "absent" %}<span class="mark mark-absent" title="Absent">{{ icon("x") }}<span class="visually-hidden">Absent</span></span>
+                  {% else %}<span class="mark-none" aria-label="Not recorded">–</span>{% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      <ul class="legend-inline" aria-label="Legend">
+        <li><span class="mark mark-present">{{ icon("check") }}</span> Present</li>
+        <li><span class="mark mark-late">{{ icon("clock") }}</span> Late</li>
+        <li><span class="mark mark-absent">{{ icon("x") }}</span> Absent</li>
+        <li><span class="mark-none">–</span> Not recorded</li>
+      </ul>
+    {% else %}
+      <div class="empty-state">{{ icon("calendar-check") }}<p>{% if grid.classes %}No students in this class yet.{% else %}No classes are available to you.{% endif %}</p></div>
+    {% endif %}
+    <nav class="pager" aria-label="Date range">
+      <a class="button button-secondary button-small" href="{{ url_for('hub.attendance', start=previous_start.isoformat(), class_id=grid.class_id if role != 'student' else None) }}">{{ icon("chevron-left") }} Previous</a>
+      <a class="button button-ghost button-small" href="{{ url_for('hub.attendance', class_id=grid.class_id if role != 'student' else None) }}">Recent</a>
+      <a class="button button-secondary button-small" href="{{ url_for('hub.attendance', start=next_start.isoformat(), class_id=grid.class_id if role != 'student' else None) }}">Next {{ icon("chevron-right") }}</a>
+    </nav>
+  </section>
+{% endblock %}

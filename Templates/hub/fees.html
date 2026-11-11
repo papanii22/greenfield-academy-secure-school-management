@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import avatar, pagination, status_badge %}
+
+{% block title %}Fees collection | Greenfield Academy{% endblock %}
+{% block page_title %}Fees collection{% endblock %}
+
+{% block content %}
+  {% set t = summary.totals %}
+  <div class="widget-row widget-row-2-1">
+    <article class="chart-card glass-card">
+      <div class="card-head"><div><p class="eyebrow">Payments received in {{ summary.year }}</p><h2>Fees collection</h2></div></div>
+      <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"line","labels":["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],"datasets":[{"label":"Collected","data":summary.monthly}],"legend":false}|tojson }}' role="img" aria-label="Fee payments received each month in {{ summary.year }}"></canvas></div>
+      <details class="chart-data">
+        <summary>View monthly collection data</summary>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Month</th><th>Collected</th></tr></thead>
+          <tbody>{% for value in summary.monthly %}<tr><td>{{ ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][loop.index0] }}</td><td>{{ "{:,.2f}".format(value) }}</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </details>
+    </article>
+    <section class="money-grid" aria-label="Fee totals">
+      <article class="money-card"><strong>{{ "{:,.2f}".format(t.total) }}</strong><span>Total amount billed</span></article>
+      <article class="money-card"><strong>{{ "{:,.2f}".format(t.tuition) }}</strong><span>Total tuition</span></article>
+      <article class="money-card"><strong>{{ "{:,.2f}".format(t.activities) }}</strong><span>Total activities</span></article>
+      <article class="money-card"><strong>{{ "{:,.2f}".format(t.misc) }}</strong><span>Total miscellaneous</span></article>
+      <article class="money-card money-card-wide"><strong>{{ "{:,.2f}".format(t.collected) }}</strong><span>Collected so far{% if t.total %} · {{ (100 * t.collected / t.total)|round|int }}%{% endif %}</span></article>
+    </section>
+  </div>
+
+  <section class="panel glass-card page-panel" aria-labelledby="fees-title">
+    <div class="page-toolbar">
+      <h2 id="fees-title">Fee records <small class="muted-text">({{ result.total }})</small></h2>
+      <form class="toolbar-filters" method="get" action="{{ url_for('hub.fees') }}" role="search">
+        <div class="inline-search">
+          <label class="visually-hidden" for="fee-search">Search by name or ID</label>
+          {{ icon("search") }}
+          <input class="form-control" id="fee-search" type="search" name="q" maxlength="100" value="{{ filters.q }}" placeholder="Search by name or ID">
+        </div>
+        <label class="visually-hidden" for="fee-term">Term</label>
+        <select class="form-control pill-select" id="fee-term" name="term" data-auto-submit>
+          <option value="">All terms</option>
+          {% for value in ("1", "2", "3") %}<option value="{{ value }}" {% if filters.term == value %}selected{% endif %}>Term {{ value }}</option>{% endfor %}
+        </select>
+        <label class="visually-hidden" for="fee-class">Class</label>
+        <select class="form-control pill-select" id="fee-class" name="class_id" data-auto-submit>
+          <option value="">All classes</option>
+          {% for item in result.classes %}<option value="{{ item.id }}" {% if filters.class_id == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}
+        </select>
+        <label class="visually-hidden" for="fee-status">Status</label>
+        <select class="form-control pill-select" id="fee-status" name="status" data-auto-submit>
+          <option value="">All status</option>
+          {% for value in ("paid", "pending", "overdue") %}<option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ value|title }}</option>{% endfor %}
+        </select>
+      </form>
+    </div>
+
+    <details class="add-panel">
+      <summary class="button button-primary button-small">{{ icon("plus") }} New fee record</summary>
+      <form class="form-grid" method="post" action="{{ url_for('hub.create_fee') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-field form-field-wide"><label for="fee-student">Student</label>
+          <select class="form-control" id="fee-student" name="student_id" required>
+            <option value="">Choose a student</option>
+            {% for student in result.students %}<option value="{{ student.id }}">{{ student.full_name }} · {{ student.class_name }} · {{ student.student_number }}</option>{% endfor %}
+          </select></div>
+        <div class="form-field"><label for="fee-new-term">Term</label>
+          <select class="form-control" id="fee-new-term" name="term" required>{% for value in ("1", "2", "3") %}<option value="{{ value }}">Term {{ value }}</option>{% endfor %}</select></div>
+        <div class="form-field"><label for="fee-tuition">Tuition fee</label><input class="form-control" id="fee-tuition" name="tuition_fee" type="number" min="0" step="0.01" max="99999999.99" required></div>
+        <div class="form-field"><label for="fee-activities">Activities fee</label><input class="form-control" id="fee-activities" name="activities_fee" type="number" min="0" step="0.01" max="99999999.99" value="0"></div>
+        <div class="form-field"><label for="fee-misc">Miscellaneous</label><input class="form-control" id="fee-misc" name="misc_fee" type="number" min="0" step="0.01" max="99999999.99" value="0"></div>
+        <div class="form-field"><label for="fee-due">Due date</label><input class="form-control" id="fee-due" name="due_date" type="date" required></div>
+        <div class="form-actions form-field-wide"><button class="button button-primary" type="submit">Create fee record</button></div>
+      </form>
+    </details>
+
+    {% if result.rows %}
+      <div class="table-wrap"><table class="data-table people-table">
+        <thead><tr><th>Student name</th><th>Class</th><th>Term</th><th>Tuition fee</th><th>Activities fee</th><th>Miscellaneous</th><th>Amount</th><th>Paid</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for fee in result.rows %}
+            <tr>
+              <td><div class="person">{{ avatar(fee.full_name) }}<div class="person-copy"><strong>{{ fee.full_name }}</strong><small>{{ fee.student_number }}</small></div></div></td>
+              <td>{{ fee.class_name }}</td>
+              <td>{{ fee.term }}</td>
+              <td>{{ "{:,.2f}".format(fee.tuition_fee) }}</td>
+              <td>{{ "{:,.2f}".format(fee.activities_fee) }}</td>
+              <td>{{ "{:,.2f}".format(fee.misc_fee) }}</td>
+              <td><strong>{{ "{:,.2f}".format(fee.total) }}</strong></td>
+              <td>{{ "{:,.2f}".format(fee.amount_paid) }}</td>
+              <td>{{ status_badge(fee.status) }}<small class="cell-note">Due {{ fee.due_date.strftime("%d %b %Y") }}</small></td>
+              <td class="table-actions">
+                {% if fee.status != "paid" %}
+                  <details class="row-popover">
+                    <summary class="icon-button icon-button-small" aria-label="Record a payment for {{ fee.full_name }}">{{ icon("wallet") }}</summary>
+                    <form class="popover-form glass-card" method="post" action="{{ url_for('hub.record_payment', fee_id=fee.id) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <p class="eyebrow">Owed {{ "{:,.2f}".format(fee.total - fee.amount_paid) }}</p>
+                      <label for="pay-{{ fee.id }}">Amount</label>
+                      <input class="form-control" id="pay-{{ fee.id }}" name="amount" type="number" min="0.01" step="0.01" max="{{ fee.total - fee.amount_paid }}" required>
+                      <label for="paid-on-{{ fee.id }}">Paid on</label>
+                      <input class="form-control" id="paid-on-{{ fee.id }}" name="paid_on" type="date" required>
+                      <button class="button button-primary button-small" type="submit">Record payment</button>
+                    </form>
+                  </details>
+                {% endif %}
+                <form method="post" action="{{ url_for('hub.delete_fee', fee_id=fee.id) }}" data-confirm="Delete this fee record and its payments?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="icon-button icon-button-small" type="submit" aria-label="Delete fee record for {{ fee.full_name }}">{{ icon("trash") }}</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {{ pagination(result) }}
+    {% else %}
+      <div class="empty-state">{{ icon("wallet") }}<p>No fee records match these filters.</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

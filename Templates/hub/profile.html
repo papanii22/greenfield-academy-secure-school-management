@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import avatar %}
+
+{% block title %}Profile | Greenfield Academy{% endblock %}
+{% block page_title %}Profile{% endblock %}
+
+{% block content %}
+  <div class="widget-row widget-row-1-2">
+    <section class="welcome-card profile-card" aria-labelledby="profile-name">
+      {{ avatar(profile.full_name, "avatar-xl") }}
+      <div class="welcome-card-copy">
+        <h2 id="profile-name">{{ profile.full_name }}</h2>
+        <p>{{ profile.role|title }}{% if profile.class_name %} · {{ profile.class_name }}{% endif %}</p>
+        <ul class="welcome-facts">
+          <li>{{ icon("mail") }}{{ profile.email }}</li>
+          {% if profile.student_number %}<li>{{ icon("key") }}{{ profile.student_number }}</li>{% endif %}
+          {% if profile.phone %}<li>{{ icon("phone") }}{{ profile.phone }}</li>{% endif %}
+          {% if profile.date_of_birth %}<li>{{ icon("calendar") }}{{ profile.date_of_birth.strftime("%B %d, %Y") }}</li>{% endif %}
+          <li>{{ icon("shield") }}MFA {{ "on" if profile.mfa_enabled else "off" }}</li>
+        </ul>
+      </div>
+    </section>
+    {% if profile.teaching %}
+      <section class="glass-card widget-card" aria-labelledby="teaching-title">
+        <div class="card-head"><h2 id="teaching-title">Teaching</h2></div>
+        <ul class="tag-list">{% for item in profile.teaching %}<li class="tag tone-{{ loop.index % 3 }}">{{ item.class_name }} · {{ item.subject_name }}</li>{% endfor %}</ul>
+      </section>
+    {% else %}
+      <section class="glass-card widget-card">
+        <div class="card-head"><h2>Account</h2></div>
+        <p class="muted-text">Member since {{ profile.created_at.strftime("%B %Y") }}. Your name and email are managed by the school office.</p>
+      </section>
+    {% endif %}
+  </div>
+
+  <section class="panel glass-card form-panel-wide" aria-labelledby="profile-form-title">
+    <div class="section-heading"><h2 id="profile-form-title">Edit your details</h2></div>
+    <form class="form-grid" method="post" action="{{ url_for('hub.profile') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-field"><label for="profile-phone">Phone number</label>
+        <input class="form-control" id="profile-phone" name="phone" type="tel" maxlength="30" autocomplete="tel" value="{{ profile.phone or '' }}"></div>
+      <div class="form-field"><label for="profile-dob">Date of birth</label>
+        <input class="form-control" id="profile-dob" name="date_of_birth" type="date" autocomplete="bday" value="{{ profile.date_of_birth.isoformat() if profile.date_of_birth else '' }}"></div>
+      <div class="form-field"><label for="profile-gender">Gender</label>
+        <select class="form-control" id="profile-gender" name="gender">
+          <option value="" {% if not profile.gender %}selected{% endif %}>Prefer not to say</option>
+          <option value="female" {% if profile.gender == "female" %}selected{% endif %}>Female</option>
+          <option value="male" {% if profile.gender == "male" %}selected{% endif %}>Male</option>
+        </select></div>
+      <div class="form-field form-field-wide"><label for="profile-address">Address</label>
+        <input class="form-control" id="profile-address" name="address" maxlength="200" autocomplete="street-address" value="{{ profile.address or '' }}"></div>
+      <div class="form-field form-field-wide"><label for="profile-bio">About</label>
+        <textarea class="form-control" id="profile-bio" name="bio" rows="3" maxlength="500">{{ profile.bio or "" }}</textarea></div>
+      <div class="form-actions form-field-wide"><button class="button button-primary" type="submit">Save profile</button></div>
+    </form>
+  </section>
+{% endblock %}

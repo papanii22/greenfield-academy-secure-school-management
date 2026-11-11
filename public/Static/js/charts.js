@@ -24,12 +24,20 @@
 
   function createChart(canvas, colors) {
     const chartData = JSON.parse(canvas.dataset.chart);
-    const palette = colors.chart;
+    // An optional "palette" picks chart colours by index, e.g. [1, 0].
+    const palette = Array.isArray(chartData.palette)
+      ? [
+          ...chartData.palette.map((n) => colors.chart[n % colors.chart.length]),
+          ...colors.chart,
+        ]
+      : colors.chart;
     const isLine = chartData.type === "line";
     const isDoughnut = chartData.type === "doughnut";
+    const horizontal = chartData.indexAxis === "y";
     const datasets = chartData.datasets.map((dataset, index) => {
       // Lines lead with yellow and bars with sky, as in the dashboard design.
-      const color = palette[(index + (isLine ? 1 : 0)) % palette.length];
+      const offset = isLine && !chartData.palette ? 1 : 0;
+      const color = palette[(index + offset) % palette.length];
       return {
         ...dataset,
         borderColor: dataset.borderColor || color,
@@ -37,11 +45,29 @@
         fill: isLine,
         borderWidth: isLine ? 3 : 0,
         borderRadius: chartData.type === "bar" ? 8 : undefined,
+        maxBarThickness: chartData.type === "bar" ? 36 : undefined,
         tension: chartData.type === "line" ? 0.4 : undefined,
         pointRadius: chartData.type === "line" ? 2 : undefined,
         pointHoverRadius: chartData.type === "line" ? 4 : undefined,
       };
     });
+
+    const valueAxis = {
+      beginAtZero: true,
+      max: chartData.max,
+      ticks: { color: colors.muted },
+      grid: { color: colors.grid },
+    };
+    const categoryAxis = {
+      ticks: { color: colors.muted },
+      grid: { color: colors.grid, display: !horizontal },
+    };
+    const doughnutOptions = isDoughnut
+      ? {
+          cutout: chartData.cutout || "50%",
+          ...(chartData.half ? { circumference: 180, rotation: -90 } : {}),
+        }
+      : {};
 
     return new Chart(canvas, {
       type: chartData.type,
@@ -52,29 +78,24 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        indexAxis: horizontal ? "y" : "x",
         animation: { duration: reducedMotion ? 0 : 450 },
+        ...doughnutOptions,
         plugins: {
           legend: {
-            display: chartData.type === "doughnut" || datasets.length > 1,
+            display:
+              chartData.legend === false
+                ? false
+                : chartData.type === "doughnut" || datasets.length > 1,
             labels: { color: colors.text, usePointStyle: true, padding: 18 },
           },
           tooltip: { enabled: true },
         },
-        scales:
-          chartData.type === "doughnut"
-            ? {}
-            : {
-                x: {
-                  ticks: { color: colors.muted },
-                  grid: { color: colors.grid },
-                },
-                y: {
-                  beginAtZero: true,
-                  max: chartData.max,
-                  ticks: { color: colors.muted },
-                  grid: { color: colors.grid },
-                },
-              },
+        scales: isDoughnut
+          ? {}
+          : horizontal
+            ? { x: valueAxis, y: categoryAxis }
+            : { x: categoryAxis, y: valueAxis },
       },
     });
   }

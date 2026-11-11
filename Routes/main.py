@@ -1,8 +1,8 @@
 from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
 from Routes.auth import login_required, role_required
-from Routes.validation import parse_term
-from database import school
+from Routes.validation import parse_page, parse_term
+from database import hub, school
 from grading import grade_for
 from reporting import report_response
 
@@ -91,9 +91,33 @@ def student_dashboard():
             "max": 100,
         },
     }
+    assignment_search = request.args.get("aq", "").strip()
+    if len(assignment_search) > 100:
+        abort(400)
+    widgets = hub.dashboard_widgets(
+        session["user_id"],
+        "student",
+        term,
+        assignment_search,
+        parse_page(request.args.get("apage")),
+    )
+    charts["grades"] = {
+        "type": "bar",
+        "indexAxis": "y",
+        "labels": [result["subject_name"] for result in dashboard["results"]],
+        "datasets": [{
+            "label": "Score (%)",
+            "data": [result["score"] for result in dashboard["results"]],
+        }],
+        "max": 100,
+        "palette": [2],
+    }
     return render_template(
         "student/dashboard.html",
         dashboard=dashboard,
+        widgets=widgets,
+        gpa=hub.gpa_from_results(dashboard["results"]),
+        assignment_search=assignment_search,
         charts=charts,
         role_label="Student",
         with_charts=True,

@@ -146,6 +146,35 @@
     });
   });
 
+  // Chat: newest message in view, Enter sends and Shift+Enter adds a line.
+  document.querySelectorAll("[data-chat-thread]").forEach((thread) => {
+    thread.scrollTop = thread.scrollHeight;
+  });
+  document.querySelectorAll("textarea[data-enter-submit]").forEach((area) => {
+    area.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      event.preventDefault();
+      if (area.value.trim()) area.form?.requestSubmit();
+    });
+  });
+
+  // Small pop-over forms built on <details> close on outside click or Escape.
+  const popovers = document.querySelectorAll("details.row-popover");
+  document.addEventListener("click", (event) => {
+    popovers.forEach((popover) => {
+      if (popover.open && !popover.contains(event.target)) popover.open = false;
+    });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    popovers.forEach((popover) => {
+      if (popover.open) {
+        popover.open = false;
+        popover.querySelector("summary")?.focus();
+      }
+    });
+  });
+
   const activeLink = document.querySelector(".nav-link.is-active");
   const indicator = document.querySelector(".nav-indicator");
   function positionIndicator() {

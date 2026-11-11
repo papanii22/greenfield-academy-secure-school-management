@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import avatar, pagination %}
+
+{% block title %}Students | Greenfield Academy{% endblock %}
+{% block page_title %}Students{% endblock %}
+
+{% block content %}
+  {% set is_admin = session.get("role") == "admin" %}
+  <section class="panel glass-card page-panel" aria-labelledby="students-title">
+    <div class="page-toolbar">
+      <h2 id="students-title">{% if is_admin %}All students list{% else %}Your students{% endif %} <small class="muted-text">({{ result.total }})</small></h2>
+      <form class="toolbar-filters" method="get" action="{{ url_for('hub.students') }}" role="search">
+        <div class="inline-search">
+          <label class="visually-hidden" for="student-search">Search by name or ID</label>
+          {{ icon("search") }}
+          <input class="form-control" id="student-search" type="search" name="q" maxlength="100"
+                 value="{{ search }}" placeholder="Search by name or ID">
+        </div>
+        <label class="visually-hidden" for="student-class">Class</label>
+        <select class="form-control pill-select" id="student-class" name="class_id" data-auto-submit>
+          <option value="">All classes</option>
+          {% for item in result.classes %}
+            <option value="{{ item.id }}" {% if class_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% if is_admin %}
+        <a class="round-button" href="{{ url_for('admin.create_user') }}" aria-label="Add a student" title="Add a student">{{ icon("plus") }}</a>
+      {% endif %}
+    </div>
+    {% if result.rows %}
+      <div class="table-wrap"><table class="data-table people-table">
+        <thead><tr><th>Student name</th><th>Student ID</th><th>Class</th><th>DOB</th><th>Phone number</th><th>Address</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for student in result.rows %}
+            <tr {% if not student.is_active %}class="is-inactive"{% endif %}>
+              <td><div class="person">{{ avatar(student.full_name) }}<div class="person-copy"><strong>{{ student.full_name }}</strong><small>{{ student.email }}</small></div></div></td>
+              <td>{{ student.student_number }}</td>
+              <td>{{ student.class_name }}</td>
+              <td>{% if student.date_of_birth %}<span class="date-pill">{{ student.date_of_birth.strftime("%m/%d/%Y") }}</span>{% else %}—{% endif %}</td>
+              <td>{{ student.phone or "—" }}</td>
+              <td class="wrap-cell">{{ student.address or "—" }}</td>
+              <td class="table-actions">
+                {% if is_admin %}
+                  <a class="icon-button icon-button-small" href="{{ url_for('admin.edit_user', user_id=student.user_id) }}" aria-label="Edit {{ student.full_name }}">{{ icon("edit") }}</a>
+                  <form method="post" action="{{ url_for('admin.set_user_status', user_id=student.user_id, action='deactivate' if student.is_active else 'activate') }}"
+                        data-confirm="{{ 'Deactivate' if student.is_active else 'Reactivate' }} {{ student.full_name }}'s account?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="icon-button icon-button-small" type="submit" aria-label="{{ 'Deactivate' if student.is_active else 'Reactivate' }} {{ student.full_name }}">{{ icon("trash" if student.is_active else "check") }}</button>
+                  </form>
+                {% endif %}
+                <form method="post" action="{{ url_for('hub.new_conversation') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="recipient_id" value="{{ student.user_id }}">
+                  <button class="icon-button icon-button-small" type="submit" aria-label="Message {{ student.full_name }}">{{ icon("message") }}</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {{ pagination(result) }}
+    {% else %}
+      <div class="empty-state">{{ icon("users") }}<p>{% if search %}No students match “{{ search }}”.{% else %}No students to show.{% endif %}</p></div>
+    {% endif %}
+  </section>
+{% endblock %}

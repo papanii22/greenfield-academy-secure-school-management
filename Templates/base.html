@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/transitions.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hub.css') }}">
     <script nonce="{{ csp_nonce }}">
       (() => {
         const savedTheme = localStorage.getItem("greenfield-theme");
@@ -51,60 +52,62 @@
               <small>Grow with knowledge.</small>
             </span>
           </a>
+          {% set role = session.get("role") %}
+          {% macro nav_item(endpoint, icon_name, label, active, sub=false) -%}
+            <a class="nav-link{% if sub %} nav-sublink{% endif %} {% if active %}is-active{% endif %}"
+               {% if active %}aria-current="page"{% endif %}
+               href="{{ url_for(endpoint) }}" data-nav-link>
+              {% if icon_name %}{{ icon(icon_name) }}{% endif %}<span>{{ label }}</span>
+            </a>
+          {%- endmacro %}
           <div class="sidebar-heading" id="nav-menu-heading">Menu</div>
           <nav class="side-nav" aria-labelledby="nav-menu-heading">
-            {% if session.get("role") == "admin" %}
-              <a class="nav-link {% if request.path == '/admin' %}is-active{% endif %}"
-                 {% if request.path == '/admin' %}aria-current="page"{% endif %}
-                 href="{{ url_for('admin.index') }}" data-nav-link>
-                {{ icon("dashboard") }}<span>Dashboard</span>
+            {% if role == "admin" %}
+              {{ nav_item("admin.index", "dashboard", "Dashboard", request.path == "/admin") }}
+              {{ nav_item("hub.teachers", "graduation-cap", "Teachers", request.path.startswith("/teachers")) }}
+              {{ nav_item("hub.students", "users", "Students", request.path.startswith("/students")) }}
+              {{ nav_item("hub.attendance", "calendar-check", "Attendance", request.path.startswith("/attendance")) }}
+              {% set in_finance = request.path.startswith("/finance") %}
+              <a class="nav-link nav-parent {% if in_finance %}is-open{% endif %}" href="{{ url_for('hub.fees') }}"
+                 aria-expanded="{{ 'true' if in_finance else 'false' }}" data-nav-link>
+                {{ icon("wallet") }}<span>Finance</span>{{ icon("chevron-down", "nav-caret") }}
               </a>
-              <a class="nav-link {% if request.path.startswith('/admin/users') %}is-active{% endif %}"
-                 {% if request.path.startswith('/admin/users') %}aria-current="page"{% endif %}
-                 href="{{ url_for('admin.users') }}" data-nav-link>
-                {{ icon("users") }}<span>User management</span>
-              </a>
-              <a class="nav-link {% if request.path.startswith('/admin/audit') %}is-active{% endif %}"
-                 {% if request.path.startswith('/admin/audit') %}aria-current="page"{% endif %}
-                 href="{{ url_for('admin.audit') }}" data-nav-link>
-                {{ icon("activity") }}<span>Audit activity</span>
-              </a>
-              <a class="nav-link {% if request.path.startswith('/admin/pending-accounts') %}is-active{% endif %}"
-                 {% if request.path.startswith('/admin/pending-accounts') %}aria-current="page"{% endif %}
-                 href="{{ url_for('admin.pending_accounts') }}" data-nav-link>
-                {{ icon("user-plus") }}<span>Pending accounts</span>
-              </a>
-              <a class="nav-link {% if request.path.startswith('/admin/password-reset-requests') %}is-active{% endif %}"
-                 {% if request.path.startswith('/admin/password-reset-requests') %}aria-current="page"{% endif %}
-                 href="{{ url_for('admin.password_reset_requests') }}" data-nav-link>
-                {{ icon("key") }}<span>Password reset requests</span>
-              </a>
-            {% elif session.get("role") == "teacher" %}
-              <a class="nav-link {% if request.path == '/teacher' %}is-active{% endif %}"
-                 {% if request.path == '/teacher' %}aria-current="page"{% endif %}
-                 href="{{ url_for('teacher.index') }}" data-nav-link>
-                {{ icon("dashboard") }}<span>Dashboard</span>
-              </a>
+              {% if in_finance %}
+                <div class="nav-children">
+                  {{ nav_item("hub.fees", "", "Fees collection", request.path.startswith("/finance/fees"), true) }}
+                  {{ nav_item("hub.expenses", "", "School expenses", request.path.startswith("/finance/expenses"), true) }}
+                </div>
+              {% endif %}
+            {% elif role == "teacher" %}
+              {{ nav_item("teacher.index", "dashboard", "Dashboard", request.path == "/teacher") }}
+              {{ nav_item("hub.students", "users", "Students", request.path.startswith("/students")) }}
+              {{ nav_item("hub.attendance", "calendar-check", "Attendance", request.path.startswith("/attendance") or request.path.startswith("/teacher/classes")) }}
+              {{ nav_item("hub.assignments", "clipboard-list", "Assignments", request.path.startswith("/assignments")) }}
             {% else %}
-              <a class="nav-link {% if request.path == '/student' %}is-active{% endif %}"
-                 {% if request.path == '/student' %}aria-current="page"{% endif %}
-                 href="{{ url_for('main.student_dashboard') }}" data-nav-link>
-                {{ icon("dashboard") }}<span>Dashboard</span>
-              </a>
+              {{ nav_item("main.student_dashboard", "dashboard", "Dashboard", request.path == "/student") }}
+              {{ nav_item("hub.assignments", "clipboard-list", "Assignments", request.path.startswith("/assignments")) }}
+              {{ nav_item("hub.attendance", "calendar-check", "Attendance", request.path.startswith("/attendance")) }}
+              {{ nav_item("hub.fees", "wallet", "My fees", request.path.startswith("/finance")) }}
             {% endif %}
-            <a class="nav-link {% if request.path == '/curriculum' %}is-active{% endif %}"
-               {% if request.path == '/curriculum' %}aria-current="page"{% endif %}
-               href="{{ url_for('main.curriculum') }}" data-nav-link>
-              {{ icon("graduation-cap") }}<span>Our Curriculum</span>
-            </a>
+            {{ nav_item("hub.notices", "megaphone", "Notice", request.path.startswith("/notices")) }}
+            {{ nav_item("hub.calendar_view", "calendar", "Calendar", request.path.startswith("/calendar")) }}
+            {{ nav_item("hub.library", "book", "Library", request.path.startswith("/library")) }}
+            {{ nav_item("hub.messages", "message", "Message", request.path.startswith("/messages")) }}
           </nav>
+          {% if role == "admin" %}
+            <div class="sidebar-heading" id="nav-admin-heading">Administration</div>
+            <nav class="side-nav" aria-labelledby="nav-admin-heading">
+              {{ nav_item("admin.users", "users", "User management", request.path.startswith("/admin/users")) }}
+              {{ nav_item("admin.audit", "activity", "Audit activity", request.path.startswith("/admin/audit")) }}
+              {{ nav_item("admin.pending_accounts", "user-plus", "Pending accounts", request.path.startswith("/admin/pending-accounts")) }}
+              {{ nav_item("admin.password_reset_requests", "key", "Password reset requests", request.path.startswith("/admin/password-reset-requests")) }}
+            </nav>
+          {% endif %}
           <div class="sidebar-heading" id="nav-other-heading">Other</div>
           <nav class="side-nav" aria-labelledby="nav-other-heading">
-            <a class="nav-link {% if request.path == url_for('auth.change_password') %}is-active{% endif %}"
-               {% if request.path == url_for('auth.change_password') %}aria-current="page"{% endif %}
-               href="{{ url_for('auth.change_password') }}" data-nav-link>
-              {{ icon("lock") }}<span>Change password</span>
-            </a>
+            {{ nav_item("hub.profile", "user", "Profile", request.path.startswith("/profile")) }}
+            {{ nav_item("hub.settings", "settings", "Setting", request.path.startswith("/settings") or request.path == url_for('auth.change_password')) }}
+            {{ nav_item("main.curriculum", "graduation-cap", "Our Curriculum", request.path == "/curriculum") }}
             <form action="{{ url_for('auth.logout') }}" method="post">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="nav-link" type="submit">{{ icon("log-out") }}<span>Log out</span></button>
@@ -125,7 +128,33 @@
               <span class="breadcrumb">Greenfield Academy <span aria-hidden="true">/</span> {{ session.get("role", "")|title }}</span>
               <h1>{% block page_title %}Dashboard{% endblock %}</h1>
             </div>
+            {% if role in ("admin", "teacher") %}
+              <form class="topbar-search" method="get" action="{{ url_for('hub.students') }}" role="search">
+                <label class="visually-hidden" for="topbar-search-input">Search students</label>
+                {{ icon("search") }}
+                <input class="form-control" id="topbar-search-input" type="search" name="q"
+                       maxlength="100" placeholder="Search students" autocomplete="off">
+              </form>
+            {% else %}
+              <form class="topbar-search" method="get" action="{{ url_for('hub.library') }}" role="search">
+                <label class="visually-hidden" for="topbar-search-input">Search the library</label>
+                {{ icon("search") }}
+                <input class="form-control" id="topbar-search-input" type="search" name="q"
+                       maxlength="100" placeholder="Search library" autocomplete="off">
+              </form>
+            {% endif %}
             <div class="topbar-actions">
+              {% set counts = nav_counts() %}
+              <a class="icon-button badge-host" href="{{ url_for('hub.messages') }}"
+                 aria-label="Messages{% if counts.messages %}, {{ counts.messages }} unread{% endif %}">
+                {{ icon("message") }}
+                {% if counts.messages %}<span class="count-badge" aria-hidden="true">{{ counts.messages if counts.messages < 100 else "99+" }}</span>{% endif %}
+              </a>
+              <a class="icon-button badge-host" href="{{ url_for('hub.notices') }}"
+                 aria-label="Notices{% if counts.notices %}, {{ counts.notices }} new{% endif %}">
+                {{ icon("bell") }}
+                {% if counts.notices %}<span class="count-badge" aria-hidden="true">{{ counts.notices if counts.notices < 100 else "99+" }}</span>{% endif %}
+              </a>
               <button class="icon-button theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false" data-theme-toggle>
                 {{ icon("sun", "theme-sun") }}{{ icon("moon", "theme-moon") }}
               </button>
@@ -143,8 +172,12 @@
                      role="menu" hidden data-user-menu>
                   <strong>{{ session.get("full_name") }}</strong>
                   <span>{{ session.get("role", "")|title }}</span>
+                  <a class="button button-ghost" href="{{ url_for('hub.profile') }}"
+                     role="menuitem">{{ icon("user") }} Profile</a>
+                  <a class="button button-ghost" href="{{ url_for('hub.settings') }}"
+                     role="menuitem">{{ icon("settings") }} Settings</a>
                   <a class="button button-ghost" href="{{ url_for('auth.change_password') }}"
-                     role="menuitem">Change password</a>
+                     role="menuitem">{{ icon("lock") }} Change password</a>
                   <form action="{{ url_for('auth.logout') }}" method="post">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="button button-ghost" type="submit" role="menuitem">{{ icon("log-out") }} Sign out</button>

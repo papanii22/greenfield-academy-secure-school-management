@@ -1,13 +1,18 @@
 {% extends "base.html" %}
 {% from "partials/icons.html" import icon %}
+{% from "partials/widgets.html" import mini_calendar, agenda, messages_preview, notices_preview, tasks_widget, status_badge, migration_notice, card_head %}
 
 {% block title %}Teacher dashboard | Greenfield Academy{% endblock %}
 {% block page_title %}Teacher dashboard{% endblock %}
 
 {% block content %}
-  <div class="section-heading dashboard-title-row">
-    <div><p class="eyebrow">Teaching workspace</p><h2>Your classes</h2></div>
-    <form class="term-filter" method="get" action="{{ url_for('teacher.index') }}">
+  {% set w = widgets %}
+  <section class="hero-banner" aria-labelledby="teacher-hero-title">
+    <div>
+      <h2 id="teacher-hero-title">Welcome back, {{ session.get("full_name", "Teacher") }}</h2>
+      <p>You teach {{ w.subject_count }} subject{{ "s" if w.subject_count != 1 }} across {{ dashboard.classes|length }} class{{ "es" if dashboard.classes|length != 1 }}{% if w.pending_reviews %}, with {{ w.pending_reviews }} submission{{ "s" if w.pending_reviews != 1 }} waiting for review{% endif %}.</p>
+    </div>
+    <form class="term-filter term-filter-on-banner" method="get" action="{{ url_for('teacher.index') }}">
       <label for="teacher-term">Academic term</label>
       <select class="form-control" id="teacher-term" name="term" data-auto-submit>
         {% for term_option in (1, 2, 3) %}
@@ -15,8 +20,112 @@
         {% endfor %}
       </select>
     </form>
+  </section>
+  {{ migration_notice(w) }}
+
+  <div class="dashboard-layout">
+    <div class="dashboard-main">
+      <section class="stat-grid stat-grid-plain" aria-label="Teaching summary">
+        <a class="stat-card glass-card stat-link" href="#your-classes"><span class="stat-label">Total classes</span><strong class="stat-value">{{ dashboard.classes|length }}</strong>{{ icon("graduation-cap", "stat-icon") }}</a>
+        <a class="stat-card glass-card stat-link" href="{{ url_for('hub.students') }}"><span class="stat-label">Total students</span><strong class="stat-value">{{ w.student_count }}</strong>{{ icon("users", "stat-icon") }}</a>
+        <a class="stat-card glass-card stat-link" href="{{ url_for('hub.profile') }}"><span class="stat-label">Subjects taught</span><strong class="stat-value">{{ w.subject_count }}</strong>{{ icon("book", "stat-icon") }}</a>
+        <a class="stat-card glass-card stat-link" href="{{ url_for('hub.assignments') }}"><span class="stat-label">To review</span><strong class="stat-value">{{ w.pending_reviews }}</strong>{{ icon("clipboard-list", "stat-icon") }}</a>
+      </section>
+
+      <div class="widget-row widget-row-1-2">
+        <article class="chart-card glass-card">
+          {{ card_head("Student attendance", url_for("hub.attendance"), "Register", "Today") }}
+          {% set t = w.today_attendance %}
+          {% set marked = t.present + t.late + t.absent %}
+          <div class="chart-canvas-wrap chart-canvas-small donut-with-centre">
+            <canvas data-chart='{{ {"type":"doughnut","labels":["Present","Late","Absent"],"datasets":[{"label":"Students","data":[t.present,t.late,t.absent]}],"cutout":"70%","palette":[2,1,4]}|tojson }}' role="img" aria-label="Today: {{ t.present }} present, {{ t.late }} late, {{ t.absent }} absent"></canvas>
+            <strong class="donut-centre">{% if marked %}{{ (100 * (t.present + t.late) / marked)|round|int }}%{% else %}—{% endif %}</strong>
+          </div>
+          {% if not marked %}<p class="chart-summary">No attendance has been marked today.</p>{% endif %}
+        </article>
+        <article class="chart-card glass-card">
+          {{ card_head("Student performance", "#your-classes", "Enter results", "Term " ~ dashboard.term ~ " averages by class") }}
+          {% if w.performance.labels %}
+            <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"bar","labels":w.performance.labels,"datasets":w.performance.datasets,"max":100}|tojson }}' role="img" aria-label="Average score in each of your subjects for each class"></canvas></div>
+          {% else %}
+            <p class="widget-empty">Performance appears once results are entered.</p>
+          {% endif %}
+        </article>
+      </div>
+
+      <div class="widget-row widget-row-1-2">
+        <section class="glass-card widget-card" aria-labelledby="tasks-title">
+          <div class="card-head"><h2 id="tasks-title">Tasks</h2></div>
+          {{ tasks_widget(w.tasks) }}
+        </section>
+        <article class="chart-card glass-card">
+          {{ card_head("Teaching activity", url_for("hub.attendance"), "Register", "Class attendance rate · last 30 days") }}
+          <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"line","labels":dashboard.attendance_trend|map(attribute="label")|list,"datasets":[{"label":"Attendance rate (%)","data":dashboard.attendance_trend|map(attribute="rate")|list}],"max":100}|tojson }}' role="img" aria-label="Attendance trend in your classes over the last 30 days"></canvas></div>
+          <details class="chart-data">
+            <summary>View attendance chart data</summary>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Attendance rate</th></tr></thead>
+              <tbody>{% for point in dashboard.attendance_trend %}<tr><td>{{ point.label }}</td><td>{{ "%.1f"|format(point.rate) }}%</td></tr>{% else %}<tr><td colspan="2">No attendance records yet.</td></tr>{% endfor %}</tbody>
+            </table></div>
+          </details>
+        </article>
+      </div>
+    </div>
+
+    <aside class="dashboard-aside" aria-label="Calendar, messages and notices">
+      <section class="glass-card widget-card">
+        {{ mini_calendar(w.calendar) }}
+        {{ card_head("Agenda", url_for("hub.calendar_view"), "Calendar") }}
+        {{ agenda(w.agenda) }}
+      </section>
+      <section class="glass-card widget-card">
+        {{ card_head("Messages", url_for("hub.messages")) }}
+        {{ messages_preview(w.conversations) }}
+      </section>
+      <section class="glass-card widget-card">
+        {{ card_head("Notices", url_for("hub.notices")) }}
+        {{ notices_preview(w.notices[:3]) }}
+      </section>
+    </aside>
   </div>
 
+  <section class="panel glass-card" aria-labelledby="student-tasks-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">Latest assignment status</p><h2 id="student-tasks-title">Student tasks</h2></div>
+      <a class="button button-secondary button-small" href="{{ url_for('hub.assignments') }}">{{ icon("plus") }} Manage assignments</a>
+    </div>
+    {% if w.submissions %}
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Student name</th><th>Topic</th><th>Task name</th><th>Due date</th><th>Status</th><th><span class="visually-hidden">Action</span></th></tr></thead>
+        <tbody>
+          {% for row in w.submissions %}
+            <tr>
+              <td><div class="person-copy"><a class="activity-link" href="{{ url_for('hub.students', q=row.full_name) }}"><strong>{{ row.full_name }}</strong></a><small>{{ row.class_name }}</small></div></td>
+              <td>{{ row.subject_name }}</td>
+              <td><a class="activity-link" href="{{ url_for('hub.assignments', q=row.title) }}">{{ row.title }}</a></td>
+              <td>{{ row.due_at.strftime("%B %d, %Y") }}</td>
+              <td>{{ status_badge(row.status) }}</td>
+              <td class="table-actions">
+                {% if row.status == "submitted" %}
+                  <form method="post" action="{{ url_for('hub.review_submission', assignment_id=row.assignment_id, student_id=row.student_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="return_to" value="dashboard">
+                    <button class="button button-ghost button-small" type="submit">Mark reviewed</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    {% else %}
+      <div class="empty-state">{{ icon("clipboard-list") }}<p>Create an assignment to track your students' progress.</p></div>
+    {% endif %}
+  </section>
+
+  <div class="section-heading dashboard-subheading" id="your-classes">
+    <div><p class="eyebrow">Teaching workspace</p><h2>Your classes</h2></div>
+    <a class="button button-ghost button-small" href="{{ url_for('hub.students') }}">All my students {{ icon("chevron-right") }}</a>
+  </div>
   {% if dashboard.classes %}
     <section class="class-grid" aria-label="Your classes">
       {% for school_class in dashboard.classes %}
@@ -29,6 +138,7 @@
             <a class="button button-secondary button-small" href="{{ url_for('teacher.attendance', class_id=school_class.id) }}">
               {{ icon("calendar-check") }} Mark attendance
             </a>
+            <a class="button button-ghost button-small" href="{{ url_for('hub.attendance', class_id=school_class.id) }}">Register grid</a>
           </div>
           <div class="table-wrap">
             <table class="data-table">
@@ -50,26 +160,6 @@
       {% endfor %}
     </section>
   {% else %}
-    <div class="empty-state glass-card">{{ icon("graduation-cap") }}<p>No classes are currently assigned to you.</p></div>
+    <div class="empty-state glass-card">{{ icon("graduation-cap") }}<p>No classes are currently assigned to you as class teacher.</p></div>
   {% endif %}
-
-  <section class="chart-grid" aria-label="Teacher attendance information">
-    <article class="chart-card glass-card">
-      <div class="section-heading"><div><p class="eyebrow">Last 30 days</p><h2>Attendance trend</h2></div>{{ icon("activity", "chart-heading-icon") }}</div>
-      <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"line","labels":dashboard.attendance_trend|map(attribute="label")|list,"datasets":[{"label":"Attendance rate (%)","data":dashboard.attendance_trend|map(attribute="rate")|list}],"max":100}|tojson }}' role="img" aria-label="Attendance trend in your classes over the last 30 days"></canvas></div>
-      <details class="chart-data">
-        <summary>View attendance chart data</summary>
-        <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Attendance rate</th></tr></thead>
-          <tbody>{% for point in dashboard.attendance_trend %}<tr><td>{{ point.label }}</td><td>{{ "%.1f"|format(point.rate) }}%</td></tr>{% else %}<tr><td colspan="2">No attendance records yet.</td></tr>{% endfor %}</tbody>
-        </table></div>
-      </details>
-    </article>
-    <article class="chart-card glass-card">
-      <div class="section-heading"><div><p class="eyebrow">Teaching resources</p><h2>Classroom actions</h2></div>{{ icon("clipboard-list", "chart-heading-icon") }}</div>
-      <div class="empty-state">
-        {{ icon("info") }}
-        <p>Attendance and results can only be changed for your assigned classes and subjects.</p>
-      </div>
-    </article>
-  </section>
 {% endblock %}

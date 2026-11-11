@@ -18,6 +18,7 @@ from wtforms.validators import DataRequired
 
 from Routes.auth import role_required
 from Routes.validation import parse_term
+from database import hub
 from database import school
 from grading import grade_for
 from reporting import report_response
@@ -42,6 +43,7 @@ def index() -> str:
     return render_template(
         "teacher/dashboard.html",
         dashboard=dashboard,
+        widgets=hub.dashboard_widgets(session["user_id"], "teacher", term),
         role_label="Teacher",
         with_charts=True,
     )
