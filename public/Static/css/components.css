@@ -357,7 +357,6 @@ select.form-control optgroup {
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow);
-  animation: rise-in 420ms var(--ease-out) both;
 }
 
 .login-brand-mark {
@@ -1317,86 +1316,6 @@ select.form-control optgroup {
   display: none !important;
 }
 
-.top-progress {
-  position: fixed;
-  z-index: 100;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 3px;
-  background: var(--primary);
-  opacity: 0;
-  transition: width 180ms ease, opacity 160ms ease;
-}
-
-.top-progress.is-active {
-  width: 78%;
-  opacity: 1;
-}
-
-.top-progress.is-complete {
-  width: 100%;
-  opacity: 0;
-}
-
-.branded-loader {
-  position: fixed;
-  z-index: 90;
-  display: none;
-  align-content: center;
-  justify-items: center;
-  gap: 1rem;
-  background: var(--bg);
-  color: var(--primary);
-  opacity: 0;
-  pointer-events: none;
-  inset: 0;
-  transition: opacity 180ms ease;
-}
-
-.branded-loader.is-visible {
-  display: grid;
-  opacity: 1;
-}
-
-.loader-logo {
-  width: 3.5rem;
-  height: 3.5rem;
-  stroke-width: 1.4;
-}
-
-.loader-spinner,
-.button-spinner {
-  width: 1.3rem;
-  height: 1.3rem;
-  border: 2px solid color-mix(in srgb, var(--primary) 28%, transparent);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 650ms linear infinite;
-}
-
-.button-spinner {
-  width: 1rem;
-  height: 1rem;
-  border-width: 2px;
-  border-color: color-mix(in srgb, currentColor 28%, transparent);
-  border-top-color: currentColor;
-}
-
-.is-submitting {
-  gap: 0.6rem;
-}
-
-.is-submitting .button-spinner {
-  display: inline-block;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .theme-toggle svg {
   animation: theme-swap 320ms var(--ease-out);
 }
@@ -1573,13 +1492,5 @@ select.form-control optgroup {
 @media (hover: none) {
   .stat-card:hover {
     transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .loader-spinner,
-  .button-spinner {
-    border: 2px solid currentColor;
-    animation: none;
   }
 }

@@ -266,7 +266,6 @@ def create_app(test_config: dict | None = None) -> Flask:
 
         return {
             "csp_nonce": g.csp_nonce,
-            "show_branded_loader": bool(session.pop("show_branded_loader", False)),
             "nav_counts": nav_counts,
         }
 

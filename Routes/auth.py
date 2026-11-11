@@ -246,7 +246,6 @@ def _establish_authenticated_session(
     session["auth_version"] = user.get("auth_version", 0)
     session["must_change_password"] = user.get("must_change_password", False)
     session["mfa_verified"] = True
-    session["show_branded_loader"] = True
     return session["must_change_password"]
 
 
@@ -347,7 +346,6 @@ def login() -> Any:
         session["mfa_pending_mode"] = (
             "verify" if user.get("mfa_enabled") else "setup"
         )
-        session["show_branded_loader"] = True
         endpoint = (
             "auth.mfa_verify"
             if session["mfa_pending_mode"] == "verify"

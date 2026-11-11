@@ -15,7 +15,6 @@
   padding: 1.4rem 1rem 1rem;
   overflow-y: auto;
   background: var(--surface);
-  view-transition-name: app-sidebar;
 }
 
 .brand {
@@ -166,13 +165,6 @@
   margin-left: auto;
 }
 
-.demo-note {
-  margin: 0.8rem 0.2rem 0;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  text-align: center;
-}
-
 .workspace {
   min-width: 0;
   min-height: 100vh;
@@ -191,7 +183,6 @@
   padding: 0.8rem clamp(1.25rem, 3vw, 2.5rem);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px);
-  view-transition-name: app-topbar;
 }
 
 .page-heading {
@@ -231,7 +222,6 @@
   min-height: calc(100dvh - 5.2rem);
   margin: 0 auto;
   padding: clamp(1.25rem, 3vw, 2.5rem);
-  view-transition-name: app-content;
 }
 
 .sidebar-scrim {
@@ -286,7 +276,6 @@
   .brand-copy,
   .sidebar-heading,
   .user-copy,
-  .demo-note,
   .user-card form {
     display: none;
   }
@@ -480,13 +469,5 @@
 
   .login-footnote {
     margin-top: 0.7rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sidebar,
-  .topbar,
-  .main-content {
-    view-transition-name: none;
   }
 }
