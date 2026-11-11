@@ -25,7 +25,7 @@
 
   <div class="dashboard-layout">
     <div class="dashboard-main">
-      <section class="stat-grid" aria-label="School statistics">
+      <section data-live-region="stats" class="stat-grid" aria-label="School statistics">
         <a class="stat-card glass-card stat-link" href="{{ url_for('hub.students') }}">
           <span class="stat-label">Students</span>
           <strong class="stat-value">{{ "{:,}".format(dashboard.total_students) }}</strong>
@@ -49,7 +49,7 @@
       </section>
 
       <div class="widget-row widget-row-1-2">
-        <article class="chart-card glass-card">
+        <article data-live-region="students-chart" class="chart-card glass-card">
           {{ card_head("Students", url_for("hub.students"), "View all") }}
           {% set g = w.gender %}
           <div class="chart-canvas-wrap chart-canvas-small"><canvas data-chart='{{ {"type":"doughnut","labels":["Boys","Girls","Not recorded"],"datasets":[{"label":"Students","data":[g.male,g.female,g.unspecified]}],"cutout":"68%","legend":false}|tojson }}' role="img" aria-label="Students by gender: {{ g.male }} boys, {{ g.female }} girls, {{ g.unspecified }} not recorded"></canvas></div>
@@ -59,7 +59,7 @@
             <div><dt><span class="dot tone-2"></span>Girls</dt><dd>{{ g.female }}<small>{% if gender_total %}{{ (100 * g.female / gender_total)|round|int }}%{% else %}0%{% endif %}</small></dd></div>
           </dl>
         </article>
-        <article class="chart-card glass-card">
+        <article data-live-region="week-attendance" class="chart-card glass-card">
           {{ card_head("Attendance", url_for("hub.attendance"), "Open register", "This week") }}
           {% set wa = w.weekly_attendance %}
           <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"bar","labels":wa.labels,"datasets":[{"label":"Total present","data":wa.present},{"label":"Total absent","data":wa.absent}],"palette":[1,0]}|tojson }}' role="img" aria-label="Students present and absent on each school day this week"></canvas></div>
@@ -73,7 +73,7 @@
       </div>
 
       <div class="widget-row widget-row-2-1">
-        <article class="chart-card glass-card">
+        <article data-live-region="earnings" class="chart-card glass-card">
           {{ card_head("Earnings", url_for("hub.fees"), "Finance", "This year") }}
           {% set e = w.earnings %}
           <div class="chart-canvas-wrap"><canvas data-chart='{{ {"type":"line","labels":e.labels,"datasets":[{"label":"Income (fees)","data":e.income},{"label":"Expense","data":e.expense}],"palette":[0,2]}|tojson }}' role="img" aria-label="Fee income and school expenses by month this year"></canvas></div>
@@ -84,7 +84,7 @@
             </table></div>
           </details>
         </article>
-        <div class="mini-stat-stack">
+        <div data-live-region="mini-stats" class="mini-stat-stack">
           <a class="mini-stat glass-card" href="{{ url_for('hub.fees', status='paid') }}">
             <span class="mini-stat-icon tone-sky">{{ icon("wallet") }}</span>
             <strong>{{ "{:,.2f}".format(w.fees.collected|float) }}</strong>
@@ -105,12 +105,12 @@
     </div>
 
     <aside class="dashboard-aside" aria-label="Calendar and messages">
-      <section class="glass-card widget-card">
+      <section data-live-region="calendar" class="glass-card widget-card">
         {{ mini_calendar(w.calendar) }}
         {{ card_head("Agenda", url_for("hub.calendar_view"), "Calendar") }}
         {{ agenda(w.agenda) }}
       </section>
-      <section class="glass-card widget-card">
+      <section data-live-region="messages" class="glass-card widget-card">
         {{ card_head("Messages", url_for("hub.messages")) }}
         {{ messages_preview(w.conversations) }}
       </section>
@@ -118,7 +118,7 @@
   </div>
 
   <div class="widget-row widget-row-thirds">
-    <section class="glass-card widget-card">
+    <section data-live-region="top-students" class="glass-card widget-card">
       {{ card_head("Student activity", url_for("admin.export_report", report="results", output_format="csv", term=dashboard.term), "Results CSV", "Top performers · Term " ~ dashboard.term) }}
       {% if w.top_students %}
         <ul class="activity-list">
@@ -131,11 +131,11 @@
         <p class="widget-empty">Results for this term will appear here.</p>
       {% endif %}
     </section>
-    <section class="glass-card widget-card">
+    <section data-live-region="notice-board" class="glass-card widget-card">
       {{ card_head("Notice board", url_for("hub.notices")) }}
       {{ notices_preview(w.notices) }}
     </section>
-    <section class="glass-card widget-card">
+    <section data-live-region="recent-activity" class="glass-card widget-card">
       {{ card_head("Recent activity", url_for("admin.audit")) }}
       {% if dashboard.recent_activity %}
         <ul class="timeline">
@@ -151,7 +151,7 @@
   </div>
 
   <section class="chart-grid" aria-label="School data charts">
-    <article class="chart-card glass-card">
+    <article data-live-region="attendance-trend" class="chart-card glass-card">
       <div class="section-heading">
         <div><p class="eyebrow">Last 30 days</p><h2>Attendance trend</h2></div>
         <div class="export-actions" aria-label="Export attendance report">
@@ -170,7 +170,7 @@
         </div>
       </details>
     </article>
-    <article class="chart-card glass-card">
+    <article data-live-region="subject-averages" class="chart-card glass-card">
       <div class="section-heading">
         <div><p class="eyebrow">Term {{ dashboard.term }}</p><h2>Average by subject</h2></div>
         <div class="export-actions" aria-label="Export results report">
@@ -189,7 +189,7 @@
         </div>
       </details>
     </article>
-    <article class="chart-card glass-card">
+    <article data-live-region="grade-distribution" class="chart-card glass-card">
       <div class="section-heading">
         <div><p class="eyebrow">Term {{ dashboard.term }}</p><h2>Grade distribution</h2></div>
         <div class="export-actions" aria-label="Export grade distribution">

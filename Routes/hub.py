@@ -7,10 +7,12 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+import psycopg
 from flask import (
     Blueprint,
     abort,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -22,6 +24,7 @@ from psycopg import errors
 from Routes.auth import role_required
 from Routes.validation import parse_page
 from database import hub
+from extensions import limiter
 
 
 hub_bp = Blueprint("hub", __name__)
@@ -769,6 +772,24 @@ def profile() -> Any:
     if details is None:
         abort(404)
     return render_template("hub/profile.html", profile=details)
+
+
+@hub_bp.get("/live/state")
+# The Messages page checks once a second (60 a minute); the limit leaves room
+# for a second tab or a burst, while still stopping a flood.
+@limiter.limit("90 per minute")
+@role_required(*ALL_ROLES)
+def live_state():
+    """Polled in the background: unread counts and a version that changes
+    whenever data the user can see does. Never counts as session activity."""
+    user_id, role = _user()
+    try:
+        state = hub.live_state(user_id, role)
+    except psycopg.Error:
+        state = {"version": None, "messages": 0, "notices": 0}
+    response = jsonify(state)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @hub_bp.get("/settings")

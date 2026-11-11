@@ -28,13 +28,20 @@
     <script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/loader.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+    {% if session.get("user_id") %}
+      <script src="{{ url_for('static', filename='js/live.js') }}" defer></script>
+    {% endif %}
     {% if with_charts %}
       <script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}" defer></script>
       <script src="{{ url_for('static', filename='js/charts.js') }}" defer></script>
     {% endif %}
   </head>
   <body class="{% if session.get('user_id') %}app-body{% else %}login-body{% endif %}"
-        data-show-loader="{{ 'true' if show_branded_loader else 'false' }}">
+        data-show-loader="{{ 'true' if show_branded_loader else 'false' }}"
+        {% if session.get("user_id") and session.get("mfa_verified") and not session.get("must_change_password") %}
+        data-live-url="{{ url_for('hub.live_state') }}"
+        data-live-interval="{% block live_interval %}5{% endblock %}"
+        {% endif %}>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="top-progress" aria-hidden="true"></div>
     <div class="branded-loader" aria-hidden="true">
@@ -146,14 +153,16 @@
             <div class="topbar-actions">
               {% set counts = nav_counts() %}
               <a class="icon-button badge-host" href="{{ url_for('hub.messages') }}"
+                 data-live-label="Messages" data-live-suffix="unread"
                  aria-label="Messages{% if counts.messages %}, {{ counts.messages }} unread{% endif %}">
                 {{ icon("message") }}
-                {% if counts.messages %}<span class="count-badge" aria-hidden="true">{{ counts.messages if counts.messages < 100 else "99+" }}</span>{% endif %}
+                <span class="count-badge" aria-hidden="true" data-live-count="messages" {% if not counts.messages %}hidden{% endif %}>{{ counts.messages if counts.messages < 100 else "99+" }}</span>
               </a>
               <a class="icon-button badge-host" href="{{ url_for('hub.notices') }}"
+                 data-live-label="Notices" data-live-suffix="new"
                  aria-label="Notices{% if counts.notices %}, {{ counts.notices }} new{% endif %}">
                 {{ icon("bell") }}
-                {% if counts.notices %}<span class="count-badge" aria-hidden="true">{{ counts.notices if counts.notices < 100 else "99+" }}</span>{% endif %}
+                <span class="count-badge" aria-hidden="true" data-live-count="notices" {% if not counts.notices %}hidden{% endif %}>{{ counts.notices if counts.notices < 100 else "99+" }}</span>
               </a>
               <button class="icon-button theme-toggle" type="button" aria-label="Switch theme" aria-pressed="false" data-theme-toggle>
                 {{ icon("sun", "theme-sun") }}{{ icon("moon", "theme-moon") }}

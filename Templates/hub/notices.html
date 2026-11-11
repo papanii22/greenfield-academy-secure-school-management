@@ -34,6 +34,7 @@
       </details>
     {% endif %}
 
+    <div data-live-region="notice-board">
     {% if result.rows %}
       <div class="split-view">
         <ul class="notice-list">
@@ -78,5 +79,6 @@
     {% else %}
       <div class="empty-state">{{ icon("megaphone") }}<p>{% if search %}No notices match “{{ search }}”.{% else %}No notices have been posted yet.{% endif %}</p></div>
     {% endif %}
+    </div>
   </section>
 {% endblock %}

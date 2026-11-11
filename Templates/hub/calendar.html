@@ -36,6 +36,7 @@
         </div>
       </div>
 
+      <div data-live-region="calendar-view">
       {% if view == "month" %}
         <div class="table-wrap calendar-wrap"><table class="month-grid">
           <thead><tr>{% for name in ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat") %}<th scope="col">{{ name|upper }}</th>{% endfor %}</tr></thead>
@@ -89,15 +90,16 @@
           <div class="empty-state">{{ icon("calendar") }}<p>Nothing is scheduled for this day.</p></div>
         {% endif %}
       {% endif %}
+      </div>
     </section>
 
     <aside class="dashboard-aside" aria-label="Agenda">
-      <section class="glass-card widget-card">
+      <section class="glass-card widget-card" data-live-region="calendar-agenda">
         <div class="card-head"><h2>Agenda</h2></div>
         {{ agenda(agenda_events) }}
       </section>
       {% if view != "day" %}
-        <section class="glass-card widget-card">
+        <section class="glass-card widget-card" data-live-region="calendar-day">
           <div class="card-head"><h2>{{ selected.strftime("%B %d, %Y") }}</h2></div>
           {% if day_events %}
             <ul class="day-detail day-detail-compact">
