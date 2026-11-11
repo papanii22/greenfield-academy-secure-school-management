@@ -1,30 +1,57 @@
 {% extends "base.html" %}
 {% from "partials/icons.html" import icon %}
 
-{% block title %}Enter results | Greenfield Academy{% endblock %}
-{% block page_title %}Enter results{% endblock %}
+{% block title %}Exam scores | Greenfield Academy{% endblock %}
+{% block page_title %}Exam scores{% endblock %}
 
 {% block content %}
+  {% set class_name = roster[0].class_name if roster else "" %}
+  {% set subject_name = roster[0].subject_name if roster else "Results" %}
   <section class="panel glass-card">
     <div class="section-heading">
-      <div><p class="eyebrow">Teacher workspace · {{ roster[0].subject_name if roster else "Results" }}</p><h2>Student results</h2></div>
+      <div><p class="eyebrow">{{ class_name }}{% if class_name %} · {% endif %}{{ subject_name }}</p><h2>Exam scores · Term {{ term }}</h2></div>
       <div class="export-actions">
         <a class="button button-ghost button-small" href="{{ url_for('teacher.export_class_report', class_id=class_id, report='results', output_format='csv', subject_id=subject_id, term=term) }}">CSV</a>
         <a class="button button-ghost button-small" href="{{ url_for('teacher.export_class_report', class_id=class_id, report='results', output_format='pdf', subject_id=subject_id, term=term) }}">PDF</a>
         <a class="button button-ghost" href="{{ url_for('teacher.index', term=term) }}">Back to dashboard</a>
       </div>
     </div>
+
+    <nav class="segmented results-terms" aria-label="Term">
+      {% for term_option in (1, 2, 3) %}
+        <a class="{% if term == term_option %}is-active{% endif %}" {% if term == term_option %}aria-current="page"{% endif %}
+           href="{{ url_for('teacher.results', class_id=class_id, subject_id=subject_id, term=term_option) }}">Term {{ term_option }}</a>
+      {% endfor %}
+    </nav>
+
     {% if roster %}
-      <form method="post" action="{{ url_for('teacher.results', class_id=class_id, subject_id=subject_id) }}" data-submit-loading>
-        {{ form.csrf_token }}
-        <div class="form-field term-filter results-term-filter">
-          <label for="result-term">Academic term</label>
-          <select class="form-control" id="result-term" name="term">
-            {% for term_option in (1, 2, 3) %}
-              <option value="{{ term_option }}" {% if term == term_option %}selected{% endif %}>Term {{ term_option }}</option>
-            {% endfor %}
-          </select>
+      {% set entered = roster|selectattr("score", "ne", none)|list|length %}
+      <p class="chart-summary">{{ entered }} of {{ roster|length }} students have a term {{ term }} score.</p>
+
+      <details class="add-panel upload-panel" {% if entered == 0 %}open{% endif %}>
+        <summary class="button button-secondary button-small">{{ icon("download") }} Upload scores from a CSV file</summary>
+        <div class="upload-box">
+          <ol class="upload-steps">
+            <li><a href="{{ url_for('teacher.results_template', class_id=class_id, subject_id=subject_id, term=term) }}">Download the class template</a> (student numbers and names, with any scores already entered).</li>
+            <li>Fill in the <strong>score</strong> column, 0 to 100. Leave a score blank to keep it as it is.</li>
+            <li>Save as CSV and upload it below. Nothing is saved unless every row is valid.</li>
+          </ol>
+          <form class="upload-form" method="post" enctype="multipart/form-data"
+                action="{{ url_for('teacher.upload_results', class_id=class_id, subject_id=subject_id) }}">
+            {{ form.csrf_token }}
+            <input type="hidden" name="term" value="{{ term }}">
+            <div class="form-field">
+              <label for="scores-file">CSV file for term {{ term }}</label>
+              <input class="form-control" id="scores-file" name="scores_file" type="file" accept=".csv,text/csv" required>
+            </div>
+            <button class="button button-primary" type="submit">{{ icon("check") }} Upload scores</button>
+          </form>
         </div>
+      </details>
+
+      <form method="post" action="{{ url_for('teacher.results', class_id=class_id, subject_id=subject_id) }}">
+        {{ form.csrf_token }}
+        <input type="hidden" name="term" value="{{ term }}">
         <div class="table-wrap"><table class="data-table">
           <thead><tr><th>Student</th><th>Student number</th><th>Score (0-100)</th><th>Grade</th></tr></thead>
           <tbody>{% for student in roster %}
@@ -39,11 +66,11 @@
             </tr>
           {% endfor %}</tbody>
         </table></div>
-        <p class="muted-text">Grades are calculated from each score and are not stored separately.</p>
-        <div class="form-actions"><button class="button button-primary" type="submit">{{ icon("check") }} Save results</button></div>
+        <p class="muted-text">Grades are calculated from each score and are not stored separately. Saving on screen needs a score for every student.</p>
+        <div class="form-actions"><button class="button button-primary" type="submit">{{ icon("check") }} Save term {{ term }} scores</button></div>
       </form>
     {% else %}
-      <div class="empty-state">{{ icon("clipboard-list") }}<p>No students are assigned to this subject in the selected class.</p></div>
+      <div class="empty-state">{{ icon("clipboard-list") }}<p>No students are enrolled in this class yet.</p></div>
     {% endif %}
   </section>
 {% endblock %}

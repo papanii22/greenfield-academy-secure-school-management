@@ -7,6 +7,7 @@ Five files share one layout between the generator and the importer:
 - fees.csv        student_number, term, tuition_fee, activities_fee, misc_fee, due_date
 - payments.csv    student_number, term, amount, paid_on
 - expenses.csv    category, description, quantity, amount, paid_on
+- results.csv     student_number, subject, term, score, entered_by_email
 
 The importer is idempotent: existing attendance and fee records are kept,
 payments are only added to fee records created in the same import, gender is
@@ -25,7 +26,8 @@ from typing import Any
 from database.db import connect_database, record_audit_event
 
 
-FILES = ("gender.csv", "attendance.csv", "fees.csv", "payments.csv", "expenses.csv")
+FILES = ("gender.csv", "attendance.csv", "fees.csv", "payments.csv", "expenses.csv",
+         "results.csv")
 STATUSES = ("present", "late", "absent")
 FEMALE_TITLES = ("mrs", "mrs.", "ms", "ms.", "miss", "madam")
 MALE_TITLES = ("mr", "mr.", "sir")
@@ -229,6 +231,67 @@ def generate_csvs(
     return counts
 
 
+def _load_teaching() -> list[dict[str, Any]]:
+    """Every (student, subject) pair that has a teacher, with that teacher."""
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT st.student_number, s.name AS subject, u.email AS teacher_email
+                FROM students st
+                JOIN users us ON us.id = st.user_id AND us.is_active
+                JOIN teacher_assignments ta ON ta.class_id = st.class_id
+                JOIN subjects s ON s.id = ta.subject_id
+                JOIN users u ON u.id = ta.teacher_id
+                ORDER BY st.id, s.name, u.id
+                """
+            )
+            return cursor.fetchall()
+
+
+def generate_results_csv(
+    out_dir: Path,
+    terms: tuple[int, ...] = (1, 2),
+    *,
+    seed: int = 2026,
+) -> int:
+    """Write results.csv: one exam score per student, subject and term.
+
+    Each student has a steady ability, each subject its own difficulty, and
+    students drift a little from term to term, so report cards look plausible
+    (most scores 45-85, a few very high or low).
+    """
+    rng = random.Random(seed)
+    teaching = _load_teaching()
+    ability: dict[str, float] = {}
+    trend: dict[str, float] = {}
+    difficulty: dict[str, float] = {}
+    seen: set[tuple[str, str]] = set()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    rows = 0
+    with (out_dir / "results.csv").open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(("student_number", "subject", "term", "score", "entered_by_email"))
+        for term in sorted(set(terms)):
+            for pair in teaching:
+                key = (pair["student_number"], pair["subject"])
+                # One teacher per class and subject; skip any second assignment.
+                if (key, term) in seen:
+                    continue
+                seen.add((key, term))
+                number = pair["student_number"]
+                ability.setdefault(number, rng.gauss(64, 10))
+                trend.setdefault(number, rng.gauss(1.5, 3))
+                difficulty.setdefault(pair["subject"], rng.gauss(0, 4))
+                score = (ability[number] - difficulty[pair["subject"]]
+                         + trend[number] * (term - 1) + rng.gauss(0, 7))
+                score = min(99.0, max(15.0, score))
+                writer.writerow((number, pair["subject"], term, f"{score:.1f}",
+                                 pair["teacher_email"]))
+                rows += 1
+    return rows
+
+
 # --------------------------------------------------------------------------
 # Import
 # --------------------------------------------------------------------------
@@ -298,6 +361,10 @@ def import_csvs(
             if (in_dir / "expenses.csv").exists():
                 report["expenses"] = _import_expenses(
                     cursor, in_dir / "expenses.csv", actor_id, today
+                )
+            if (in_dir / "results.csv").exists():
+                report["results"] = _import_results(
+                    cursor, in_dir / "results.csv", student_by_number, user_by_email
                 )
             if report:
                 record_audit_event(actor_id, "hub_data_imported", None, connection=connection)
@@ -447,6 +514,55 @@ def _import_payments(cursor, path: Path, student_by_number, new_fee_ids, actor_i
     )
     return {"read": len(rows), "inserted": len(valid), "skipped": skipped,
             "fee_not_in_this_import": not_new}
+
+
+def _import_results(cursor, path: Path, student_by_number, user_by_email) -> dict[str, int]:
+    """Add exam scores. A score already in the database (for example one a
+    teacher entered) is kept; the file never overwrites it."""
+    rows = _read(path, ("student_number", "subject", "term", "score", "entered_by_email"))
+    cursor.execute("SELECT id, name FROM subjects")
+    subject_by_name = {row["name"].lower(): row["id"] for row in cursor.fetchall()}
+    valid: list[tuple[int, int, int, Decimal, int]] = []
+    skipped = 0
+    for row in rows:
+        student_id = student_by_number.get(row["student_number"])
+        subject_id = subject_by_name.get(row["subject"].lower())
+        teacher_id = user_by_email.get(row["entered_by_email"].lower())
+        try:
+            term = int(row["term"])
+            score = _money(row["score"], "score")
+        except (ValueError, RowError):
+            skipped += 1
+            continue
+        if (student_id is None or subject_id is None or teacher_id is None
+                or term not in (1, 2, 3) or score > 100):
+            skipped += 1
+            continue
+        valid.append((student_id, subject_id, term, score, teacher_id))
+    cursor.execute(
+        """
+        CREATE TEMP TABLE results_import (
+            student_id BIGINT, subject_id BIGINT, term SMALLINT,
+            score NUMERIC(5, 2), entered_by BIGINT
+        ) ON COMMIT DROP
+        """
+    )
+    with cursor.copy(
+        "COPY results_import (student_id, subject_id, term, score, entered_by) FROM STDIN"
+    ) as copy:
+        for record in valid:
+            copy.write_row(record)
+    cursor.execute(
+        """
+        INSERT INTO results (student_id, subject_id, term, score, entered_by)
+        SELECT DISTINCT ON (student_id, subject_id, term)
+               student_id, subject_id, term, score, entered_by
+        FROM results_import
+        ON CONFLICT (student_id, subject_id, term) DO NOTHING
+        """
+    )
+    return {"read": len(rows), "inserted": cursor.rowcount, "skipped": skipped,
+            "already_recorded": len(valid) - cursor.rowcount}
 
 
 def _import_expenses(cursor, path: Path, actor_id, today) -> dict[str, int]:

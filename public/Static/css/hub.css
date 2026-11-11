@@ -2023,6 +2023,45 @@ a.tile:hover {
   font-size: var(--text-xs);
 }
 
+/* ---------- Exam score entry ---------- */
+
+.results-terms {
+  margin-bottom: 1rem;
+}
+
+.upload-box {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  background: var(--tint-sky);
+}
+
+.upload-steps {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: var(--text-sm);
+}
+
+.upload-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.8rem;
+}
+
+.upload-form .form-field {
+  min-width: min(100%, 18rem);
+  margin-bottom: 0;
+}
+
+.upload-form input[type="file"] {
+  padding: 0.5rem;
+}
+
 /* ---------- Assignments ---------- */
 
 .assignment-list {

@@ -103,6 +103,44 @@ teacher workloads, so the seed command does not create curriculum-wide
 teacher-subject assignments. Review the configured database and back it up
 before running the command against data you need to preserve.
 
+Once teachers exist, give every class a teacher as its class teacher:
+
+```powershell
+.\.venv\Scripts\flask.exe --app app assign-class-teachers
+```
+
+It changes only classes whose class teacher is not an active teacher (such as
+the administrator placed there above). Each gets a teacher who already teaches
+that class, preferring the English or Mathematics teacher, and no teacher
+becomes class teacher of two classes. It lists the plan and asks before saving.
+
+## Demo data commands
+
+These commands write fictional data to the configured database. Each asks for
+confirmation (skip with `--yes`), only adds missing rows, and is safe to run
+again. Generated CSV files go to `seed_data/`, which is git-ignored.
+
+| Command | What it does |
+| --- | --- |
+| `seed-teachers`, `seed-students` | Create fictional accounts; one-time passwords are written to a CSV file |
+| `seed-hub-data` | Generate and import gender, 8 weeks of attendance, fee records, payments and expenses |
+| `seed-results --terms 1,2` | Generate and import exam scores for every student and subject in the given terms, credited to each subject's assigned teacher; never overwrites a score already entered |
+| `import-hub-csv <folder>` | Import `gender.csv`, `attendance.csv`, `fees.csv`, `payments.csv`, `expenses.csv` and `results.csv` from a folder; column layouts are documented in `database/seed_hub.py` |
+
+## Teachers: attendance and exam scores
+
+Every teacher sees all the classes they teach on their dashboard, labelled
+"Class teacher" or "Subject teacher". Any teacher assigned to a class can mark
+its register (one mark per student per day; the teacher who saved it is
+recorded). Scores are entered per class, subject and term, either on screen or
+by uploading a CSV file: download the class template from the scores page, fill
+in the `score` column (0 to 100; blank leaves a score unchanged) and upload it.
+The results export can be re-uploaded too. The whole file is validated first
+and nothing is saved if any row is wrong; files are limited to 512 KB and to
+students in that class.
+
+Set `CURRENT_TERM` (1, 2 or 3) so dashboards open on the term in progress.
+
 ## School hub features
 
 Every role shares one shell: a sidebar for the role's pages, plus top-bar
@@ -113,7 +151,8 @@ search, message and notice badges. The pages are:
 | Dashboard | stat tiles, student gender, weekly attendance, earnings, fees, top performers, notices, audit activity | classes, attendance donut, performance by class, to-do tasks, teaching activity, student task status | profile card, tiles, GPA gauge, score trend, grades by subject, assignments, fees |
 | Teachers (`/teachers`) | list, search, edit, deactivate, message | — | — |
 | Students (`/students`) | all students | own classes | — |
-| Attendance (`/attendance`) | any class, 14-day grid | own classes, link to mark | own record |
+| Attendance (`/attendance`) | any class, 14-day grid | every class they teach, mark the register | own record |
+| Exam scores | school-wide reports | enter or upload a CSV per class, subject and term | own scores and grades |
 | Finance (`/finance/fees`, `/finance/expenses`) | fee records, payments, expenses, monthly charts | — | own fees (read only) |
 | Notices (`/notices`) | post, delete any | post, delete own | read |
 | Calendar (`/calendar`) | month/week/day, add, delete any | add, delete own | read |
@@ -126,6 +165,14 @@ Before using these pages on an existing database, review and run
 `database/migration_school_hub.sql` (after `migration_signup_reset.sql`) in the
 Supabase SQL Editor. It only creates tables and indexes and can be run more
 than once. Until it runs, dashboards show a notice and empty hub panels.
+
+Pages refresh themselves in the background: every 5 seconds (every second on
+Messages) they ask `/live/state` whether anything the user can see has
+changed, update the unread badges, and on a change swap in only the parts of
+the page marked `data-live-region`. A part someone is typing in or has a menu
+open in is left alone until a later check. Checks pause while the tab is
+hidden, back off after errors, and never count as activity, so the 30-minute
+idle sign-out still applies.
 
 ## Run tests
 
