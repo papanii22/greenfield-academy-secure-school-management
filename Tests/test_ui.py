@@ -260,20 +260,27 @@ def test_proxy_headers_are_trusted_only_when_enabled():
     assert response.json == {"ip": "198.51.100.10"}
 
 
-def test_dashboard_consumes_one_time_login_loader_flag(client, admin_dashboard):
+def test_pages_have_no_loading_animations_or_demo_notice(client, admin_dashboard):
+    removed = (
+        b"branded-loader", b"top-progress", b"loader-spinner", b"data-show-loader",
+        b"Demo system", b"fictional data",
+    )
+    login = client.get("/login").data
     with client.session_transaction() as session:
         session["user_id"] = 1
         session["role"] = "admin"
         session["mfa_verified"] = True
         session["full_name"] = "Demo Administrator"
-        session["show_branded_loader"] = True
+    dashboard = client.get("/admin").data
 
-    response = client.get("/admin")
-
-    assert response.status_code == 200
-    assert b'data-show-loader="true"' in response.data
-    with client.session_transaction() as session:
-        assert "show_branded_loader" not in session
+    for page in (login, dashboard):
+        for marker in removed:
+            assert marker not in page, marker
+    for asset in ("css/components.css", "css/layout.css", "css/transitions.css", "js/loader.js"):
+        text = client.get(f"/Static/{asset}").data
+        for marker in (b"branded-loader", b"top-progress", b"button-spinner",
+                       b"view-transition", b"is-navigating", b"demo-note"):
+            assert marker not in text, (asset, marker)
 
 
 def test_authenticated_shell_has_theme_and_user_menu_controls(client, admin_dashboard):

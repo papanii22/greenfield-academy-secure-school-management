@@ -1,45 +1,6 @@
-@view-transition {
-  navigation: auto;
-}
-
-::view-transition-old(app-content) {
-  animation: page-out 140ms ease-in both;
-}
-
-::view-transition-new(app-content) {
-  animation: page-in 270ms ease-out both;
-}
-
-::view-transition-old(app-sidebar),
-::view-transition-new(app-sidebar),
-::view-transition-old(app-topbar),
-::view-transition-new(app-topbar) {
-  animation: none;
-}
-
-@keyframes page-in {
-  from {
-    opacity: 0;
-    transform: translateY(7px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes page-out {
-  to {
-    opacity: 0;
-  }
-}
-
-.is-navigating .main-content {
-  opacity: 0;
-  transform: translateY(-3px);
-  transition: opacity 100ms ease, transform 100ms ease;
-}
-
+/* Page-change animations were removed: pages appear as soon as they load.
+   This file only honours the system "reduce motion" setting for the small
+   hover and menu effects that remain. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -48,6 +9,5 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    view-transition-name: none !important;
   }
 }

@@ -37,18 +37,11 @@
     {% endif %}
   </head>
   <body class="{% if session.get('user_id') %}app-body{% else %}login-body{% endif %}"
-        data-show-loader="{{ 'true' if show_branded_loader else 'false' }}"
         {% if session.get("user_id") and session.get("mfa_verified") and not session.get("must_change_password") %}
         data-live-url="{{ url_for('hub.live_state') }}"
         data-live-interval="{% block live_interval %}5{% endblock %}"
         {% endif %}>
     <a class="skip-link" href="#main-content">Skip to main content</a>
-    <div class="top-progress" aria-hidden="true"></div>
-    <div class="branded-loader" aria-hidden="true">
-      <svg class="loader-logo"><use href="{{ url_for('static', filename='icons/sprite.svg') }}#logo-mark"></use></svg>
-      <span class="loader-spinner"></span>
-      <span class="visually-hidden">Loading Greenfield Academy</span>
-    </div>
     {% if session.get("user_id") %}
       <div class="app-shell">
         <aside class="sidebar" id="app-sidebar" aria-label="Main navigation">
@@ -120,9 +113,6 @@
               <button class="nav-link" type="submit">{{ icon("log-out") }}<span>Log out</span></button>
             </form>
           </nav>
-          <div class="sidebar-bottom">
-            <p class="demo-note">Demo system, fictional data.</p>
-          </div>
         </aside>
         <button class="sidebar-scrim" type="button" aria-label="Close navigation" tabindex="-1" data-menu-close></button>
         <div class="workspace">
@@ -224,7 +214,7 @@
         <footer class="login-footer">
           <a href="{{ url_for('main.curriculum') }}">Our Curriculum</a>
           <span aria-hidden="true">·</span>
-          Greenfield Academy · Demo system, fictional data.
+          Greenfield Academy
         </footer>
       </main>
     {% endif %}
