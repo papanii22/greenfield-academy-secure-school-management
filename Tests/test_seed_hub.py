@@ -103,7 +103,9 @@ def test_generation_is_repeatable_for_the_same_seed(tmp_path, monkeypatch):
     seed_hub.generate_csvs(first, weeks=1, seed=3, today=date(2026, 11, 11))
     seed_hub.generate_csvs(second, weeks=1, seed=3, today=date(2026, 11, 11))
 
-    for name in seed_hub.FILES:
+    written = sorted(path.name for path in first.iterdir())
+    assert written == sorted(name for name in seed_hub.FILES if name != "results.csv")
+    for name in written:
         assert (first / name).read_bytes() == (second / name).read_bytes()
 
 

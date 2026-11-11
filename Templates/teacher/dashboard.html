@@ -131,7 +131,7 @@
       {% for school_class in dashboard.classes %}
         <article class="class-card glass-card">
           <div class="section-heading">
-            <div><p class="eyebrow">Class teacher</p><h3>{{ school_class.name }}</h3></div>
+            <div><p class="eyebrow">{{ "Class teacher" if school_class.is_class_teacher else "Subject teacher" }}</p><h3>{{ school_class.name }}</h3></div>
             {{ icon("graduation-cap", "chart-heading-icon") }}
           </div>
           <div class="class-actions">
@@ -148,7 +148,7 @@
                   <tr>
                     <td>{{ subject.subject_name }}</td>
                     <td>{% if subject.average is not none %}{{ "%.1f"|format(subject.average) }}%{% else %}—{% endif %}</td>
-                    <td><a href="{{ url_for('teacher.results', class_id=school_class.id, subject_id=subject.subject_id, term=dashboard.term) }}">Enter / edit</a></td>
+                    <td><a href="{{ url_for('teacher.results', class_id=school_class.id, subject_id=subject.subject_id, term=dashboard.term) }}">Enter or upload scores</a></td>
                   </tr>
                 {% else %}
                   <tr><td colspan="3">No subjects are assigned for this class.</td></tr>
@@ -160,6 +160,6 @@
       {% endfor %}
     </section>
   {% else %}
-    <div class="empty-state glass-card">{{ icon("graduation-cap") }}<p>No classes are currently assigned to you as class teacher.</p></div>
+    <div class="empty-state glass-card">{{ icon("graduation-cap") }}<p>No classes or subjects are assigned to you yet. An administrator assigns them.</p></div>
   {% endif %}
 {% endblock %}

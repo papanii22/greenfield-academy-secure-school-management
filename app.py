@@ -556,6 +556,122 @@ def create_app(test_config: dict | None = None) -> Flask:
             return
         _echo_import_report(seed_hub.import_csvs(out_dir, _seed_actor_id()))
 
+    @app.cli.command("seed-results")
+    @click.option("--terms", default="1,2", show_default=True,
+                  help="Comma-separated terms to generate exam scores for.")
+    @click.option("--output-dir", default="seed_data/results", show_default=True,
+                  type=click.Path(file_okay=False, writable=True),
+                  help="Folder that receives results.csv.")
+    @click.option("--seed", default=2026, show_default=True, type=int,
+                  help="Random seed, so the same command gives the same file.")
+    @click.option("--generate-only", is_flag=True, help="Write the CSV without importing.")
+    @click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+    def seed_results(terms: str, output_dir: str, seed: int, generate_only: bool,
+                     yes: bool) -> None:
+        """Generate fictional exam scores for every student and subject in the
+        given terms, credited to each subject's assigned teacher, then import them."""
+        from database import seed_hub
+
+        try:
+            chosen = tuple(sorted({int(value) for value in terms.split(",") if value.strip()}))
+        except ValueError as error:
+            raise click.ClickException("Terms must be numbers such as 1,2.") from error
+        if not chosen or any(term not in (1, 2, 3) for term in chosen):
+            raise click.ClickException("Terms must be 1, 2 or 3.")
+        out_dir = Path(output_dir)
+        click.echo(
+            f"This writes {out_dir / 'results.csv'} with exam scores for term(s) "
+            f"{', '.join(map(str, chosen))}"
+            + ("." if generate_only else
+               " and imports it. Scores already in the database are kept, never overwritten.")
+        )
+        if not yes and not click.confirm("Continue?", default=False):
+            click.echo("Cancelled.")
+            return
+        rows = seed_hub.generate_results_csv(out_dir, chosen, seed=seed)
+        click.echo(f"  results.csv: {rows} rows written")
+        if generate_only:
+            return
+        _echo_import_report(seed_hub.import_csvs(out_dir, _seed_actor_id()))
+
+    @app.cli.command("assign-class-teachers")
+    @click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+    def assign_class_teachers(yes: bool) -> None:
+        """Give every class a teacher as its class teacher.
+
+        Only classes whose class teacher is not an active teacher (for example
+        the administrator placed there by seed-curriculum) are changed. Each is
+        given a teacher who already teaches that class, preferring the English
+        or Mathematics teacher, and no teacher becomes class teacher of two
+        classes. Existing teacher class teachers are kept.
+        """
+        preferred = ("English", "English Language", "Mathematics", "Science",
+                     "English Literature")
+        with connect_database() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT c.id, c.name
+                    FROM classes c
+                    JOIN users u ON u.id = c.class_teacher_id
+                    WHERE NOT (u.role = 'teacher' AND u.is_active)
+                    ORDER BY c.id
+                    """
+                )
+                classes = cursor.fetchall()
+                if not classes:
+                    click.echo("Every class already has a teacher as class teacher.")
+                    return
+                cursor.execute(
+                    """
+                    SELECT c.class_teacher_id AS id FROM classes c
+                    JOIN users u ON u.id = c.class_teacher_id
+                    WHERE u.role = 'teacher' AND u.is_active
+                    """
+                )
+                taken = {row["id"] for row in cursor.fetchall()}
+                plan = []
+                for school_class in classes:
+                    cursor.execute(
+                        """
+                        SELECT u.id, u.full_name, s.name AS subject,
+                               (SELECT COUNT(DISTINCT ta2.class_id) FROM teacher_assignments ta2
+                                WHERE ta2.teacher_id = u.id) AS class_count
+                        FROM teacher_assignments ta
+                        JOIN users u ON u.id = ta.teacher_id AND u.role = 'teacher' AND u.is_active
+                        JOIN subjects s ON s.id = ta.subject_id
+                        WHERE ta.class_id = %s
+                        """,
+                        (school_class["id"],),
+                    )
+                    candidates = [row for row in cursor.fetchall() if row["id"] not in taken]
+                    if not candidates:
+                        click.echo(f"  {school_class['name']}: no free teacher teaches this class; skipped")
+                        continue
+                    rank = {name: index for index, name in enumerate(preferred)}
+                    choice = min(candidates, key=lambda row: (
+                        rank.get(row["subject"], len(preferred)), row["class_count"], row["id"],
+                    ))
+                    taken.add(choice["id"])
+                    plan.append((school_class, choice))
+
+                for school_class, choice in plan:
+                    click.echo(f"  {school_class['name']}: {choice['full_name']} ({choice['subject']})")
+                if not plan:
+                    return
+                if not yes and not click.confirm(
+                    f"Make these {len(plan)} teachers class teachers?", default=False
+                ):
+                    click.echo("Cancelled.")
+                    connection.rollback()
+                    return
+                cursor.executemany(
+                    "UPDATE classes SET class_teacher_id = %s WHERE id = %s",
+                    [(choice["id"], school_class["id"]) for school_class, choice in plan],
+                )
+                record_audit_event(None, "class_teachers_assigned", None, connection=connection)
+        click.echo(f"Assigned {len(plan)} class teachers.")
+
     @app.cli.command("import-hub-csv")
     @click.argument("csv_dir", type=click.Path(exists=True, file_okay=False))
     @click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")

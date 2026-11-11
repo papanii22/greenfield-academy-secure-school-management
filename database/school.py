@@ -372,14 +372,17 @@ def get_audit_logs(
 def get_teacher_dashboard(teacher_id: int, term: int) -> dict[str, Any]:
     with connect_database() as connection:
         with connection.cursor() as cursor:
+            # Every class the teacher teaches, not only the one they are class teacher of.
             cursor.execute(
                 """
-                SELECT id, name
-                FROM classes
-                WHERE class_teacher_id = %s
-                ORDER BY name
+                SELECT c.id, c.name, (c.class_teacher_id = %s) AS is_class_teacher
+                FROM classes c
+                WHERE c.class_teacher_id = %s
+                   OR EXISTS (SELECT 1 FROM teacher_assignments ta
+                              WHERE ta.class_id = c.id AND ta.teacher_id = %s)
+                ORDER BY c.id
                 """,
-                (teacher_id,),
+                (teacher_id, teacher_id, teacher_id),
             )
             class_rows = cursor.fetchall()
             classes = []
@@ -407,6 +410,7 @@ def get_teacher_dashboard(teacher_id: int, term: int) -> dict[str, Any]:
                     {
                         "id": class_row["id"],
                         "name": class_row["name"],
+                        "is_class_teacher": class_row["is_class_teacher"],
                         "subjects": cursor.fetchall(),
                     }
                 )
@@ -418,7 +422,10 @@ def get_teacher_dashboard(teacher_id: int, term: int) -> dict[str, Any]:
                 FROM generate_series(CURRENT_DATE - INTERVAL '29 days',
                                      CURRENT_DATE,
                                      INTERVAL '1 day') AS day
-                LEFT JOIN classes c ON c.class_teacher_id = %s
+                LEFT JOIN classes c
+                  ON c.class_teacher_id = %s
+                  OR EXISTS (SELECT 1 FROM teacher_assignments ta
+                             WHERE ta.class_id = c.id AND ta.teacher_id = %s)
                 LEFT JOIN students st ON st.class_id = c.id
                 LEFT JOIN attendance a
                   ON a.student_id = st.id
@@ -426,7 +433,7 @@ def get_teacher_dashboard(teacher_id: int, term: int) -> dict[str, Any]:
                 GROUP BY day
                 ORDER BY day
                 """,
-                (teacher_id,),
+                (teacher_id, teacher_id),
             )
             attendance_trend = [
                 {
@@ -444,6 +451,18 @@ def get_teacher_dashboard(teacher_id: int, term: int) -> dict[str, Any]:
     }
 
 
+# A teacher may mark a class's register when they are its class teacher or
+# teach it any subject. Attendance is one mark per student per day; the last
+# teacher to save it is recorded in marked_by.
+_CAN_MARK_ATTENDANCE = """
+    SELECT 1 FROM classes c
+    WHERE c.id = %(class_id)s
+      AND (c.class_teacher_id = %(teacher_id)s
+           OR EXISTS (SELECT 1 FROM teacher_assignments ta
+                      WHERE ta.class_id = c.id AND ta.teacher_id = %(teacher_id)s))
+"""
+
+
 def get_class_roster_for_attendance(
     teacher_id: int,
     class_id: int,
@@ -452,8 +471,8 @@ def get_class_roster_for_attendance(
     with connect_database() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT 1 FROM classes WHERE id = %s AND class_teacher_id = %s",
-                (class_id, teacher_id),
+                _CAN_MARK_ATTENDANCE,
+                {"class_id": class_id, "teacher_id": teacher_id},
             )
             if cursor.fetchone() is None:
                 return None
@@ -467,10 +486,9 @@ def get_class_roster_for_attendance(
                   ON a.student_id = s.id
                  AND a.attendance_date = %s
                 WHERE c.id = %s
-                  AND c.class_teacher_id = %s
                 ORDER BY u.full_name
                 """,
-                (attendance_date, class_id, teacher_id),
+                (attendance_date, class_id),
             )
             rows = cursor.fetchall()
     return rows
@@ -488,8 +506,8 @@ def save_class_attendance(
     with connect_database() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT id FROM classes WHERE id = %s AND class_teacher_id = %s",
-                (class_id, teacher_id),
+                _CAN_MARK_ATTENDANCE,
+                {"class_id": class_id, "teacher_id": teacher_id},
             )
             if cursor.fetchone() is None:
                 return False
@@ -613,6 +631,74 @@ def save_class_results(
                 connection=connection,
             )
     return True
+
+
+def save_uploaded_results(
+    teacher_id: int,
+    class_id: int,
+    subject_id: int,
+    term: int,
+    scores: dict[str, Decimal],
+    ip_address: str | None,
+) -> int | None:
+    """Save scores keyed by student number from an uploaded file.
+
+    Unlike the on-screen form, a file may cover only some of the class: the
+    listed students are saved and everyone else is left as they were. Every
+    listed student number must belong to this class. Returns the number of
+    scores saved, or None when the teacher does not teach this class/subject.
+    """
+    if term not in (1, 2, 3):
+        raise ValueError("Choose a valid term.")
+    if not scores:
+        raise ValueError("The file has no scores to save.")
+    for score in scores.values():
+        grade_for(score)
+        if score != score.quantize(Decimal("0.01")):
+            raise ValueError("Scores can have no more than two decimal places.")
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT st.id, st.student_number
+                FROM teacher_assignments ta
+                JOIN students st ON st.class_id = ta.class_id
+                WHERE ta.teacher_id = %s AND ta.class_id = %s AND ta.subject_id = %s
+                """,
+                (teacher_id, class_id, subject_id),
+            )
+            roster = {row["student_number"]: row["id"] for row in cursor.fetchall()}
+            if not roster:
+                cursor.execute(
+                    "SELECT 1 FROM teacher_assignments "
+                    "WHERE teacher_id = %s AND class_id = %s AND subject_id = %s",
+                    (teacher_id, class_id, subject_id),
+                )
+                if cursor.fetchone() is None:
+                    return None
+            unknown = sorted(set(scores) - set(roster))
+            if unknown:
+                shown = ", ".join(unknown[:5]) + (" and more" if len(unknown) > 5 else "")
+                raise ValueError(f"These student numbers are not in this class: {shown}.")
+            cursor.executemany(
+                """
+                INSERT INTO results (student_id, subject_id, term, score, entered_by)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (student_id, subject_id, term)
+                DO UPDATE SET score = EXCLUDED.score, entered_by = EXCLUDED.entered_by
+                """,
+                [
+                    (roster[number], subject_id, term, score, teacher_id)
+                    for number, score in scores.items()
+                ],
+            )
+            record_audit_event(
+                teacher_id,
+                "results_uploaded",
+                ip_address,
+                connection=connection,
+            )
+    return len(scores)
 
 
 def get_student_dashboard(user_id: int, term: int) -> dict[str, Any] | None:

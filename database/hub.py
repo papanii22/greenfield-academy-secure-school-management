@@ -232,13 +232,9 @@ def attendance_grid(
                 (row["student_id"], row["attendance_date"]): row["status"]
                 for row in cursor.fetchall()
             }
-            can_mark = False
-            if role == "teacher":
-                cursor.execute(
-                    "SELECT 1 FROM classes WHERE id = %s AND class_teacher_id = %s",
-                    (class_id, user_id),
-                )
-                can_mark = cursor.fetchone() is not None
+            # Teachers reach only classes they teach (checked above), and any of
+            # them may mark that class's register.
+            can_mark = role == "teacher"
     rows = [
         {
             "full_name": student["full_name"],
