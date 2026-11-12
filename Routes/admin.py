@@ -375,6 +375,16 @@ def set_user_status(user_id: int, action: str):
     if not active and user_id == session["user_id"]:
         flash("You cannot deactivate your own administrator account.", "error")
         return redirect(url_for("admin.users"))
+    if active:
+        # Sign-up requests are approved on their own page, which also assigns a
+        # class and subjects. Send the admin there instead of failing with a 404.
+        signup_status = accounts.get_signup_status(user_id)
+        if signup_status == "pending":
+            flash("This account is waiting for approval. Review the request to activate it.", "info")
+            return redirect(url_for("admin.review_signup", user_id=user_id))
+        if signup_status == "rejected":
+            flash("This sign-up request was rejected, so the account cannot be reactivated.", "error")
+            return redirect(url_for("admin.users"))
     updated = school.set_user_active(
         user_id,
         active,

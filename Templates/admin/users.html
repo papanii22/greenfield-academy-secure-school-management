@@ -45,7 +45,7 @@
                 </td>
                 <td><span class="badge badge-role">{{ user.role|title }}</span></td>
                 <td>{% if user.student_number %}{{ user.class_name }} · {{ user.student_number }}{% else %}—{% endif %}</td>
-                <td><span class="badge {% if user.is_active %}badge-success{% else %}badge-danger{% endif %}">{{ "Active" if user.is_active else "Inactive" }}</span></td>
+                <td><span class="badge {% if user.is_active %}badge-success{% elif user.signup_status == 'pending' %}badge-warning{% else %}badge-danger{% endif %}">{{ "Active" if user.is_active else ("Pending approval" if user.signup_status == "pending" else "Inactive") }}</span></td>
                 <td class="table-actions">
                   <a class="button button-ghost button-small" href="{{ url_for('admin.edit_user', user_id=user.id) }}">Edit</a>
                   {% if user.role in ("teacher", "student") and user.is_active %}
@@ -54,7 +54,9 @@
                       Reset password
                     </a>
                   {% endif %}
-                  {% if user.id != session.get("user_id") %}
+                  {% if user.signup_status == "pending" %}
+                    <a class="button button-primary button-small" href="{{ url_for('admin.review_signup', user_id=user.id) }}">Review request</a>
+                  {% elif user.id != session.get("user_id") and not (user.signup_status == "rejected" and not user.is_active) %}
                     <form method="post" action="{{ url_for('admin.set_user_status', user_id=user.id, action='deactivate' if user.is_active else 'activate') }}" data-confirm="{{ 'Deactivate' if user.is_active else 'Reactivate' }} this account?">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button class="button {% if user.is_active %}button-danger{% else %}button-secondary{% endif %} button-small" type="submit">

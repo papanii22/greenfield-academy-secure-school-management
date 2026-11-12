@@ -10,6 +10,7 @@ from argon2 import PasswordHasher
 from flask import Flask, g, jsonify, render_template, request, session
 from flask.sessions import SecureCookieSessionInterface
 from flask_wtf.csrf import CSRFError, CSRFProtect
+import psycopg
 from psycopg import errors
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import safe_join
@@ -344,6 +345,16 @@ def create_app(test_config: dict | None = None) -> Flask:
             status_code=429,
             message="Too many requests were received. Wait a few minutes and try again.",
         ), 429
+
+    @app.errorhandler(psycopg.OperationalError)
+    def database_unavailable(_error: Exception) -> tuple[str, int]:
+        app.logger.error("Database unavailable", exc_info=True)
+        return render_template(
+            "errors/error.html",
+            title="Service temporarily unavailable",
+            status_code=503,
+            message="The school database could not be reached. Wait a moment and try again.",
+        ), 503
 
     @app.errorhandler(500)
     def internal_error(_error: Exception) -> tuple[str, int]:

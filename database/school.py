@@ -129,8 +129,10 @@ def list_users(search: str, role: str | None, page: int, per_page: int = 20) -> 
             cursor.execute(
                 """
                 SELECT u.id, u.full_name, u.email, u.role, u.is_active,
-                       u.must_change_password, s.student_number, c.name AS class_name
+                       u.must_change_password, s.student_number, c.name AS class_name,
+                       sr.status AS signup_status
                 FROM users u
+                LEFT JOIN signup_requests sr ON sr.user_id = u.id
                 LEFT JOIN students s ON s.user_id = u.id
                 LEFT JOIN classes c ON c.id = s.class_id
                 WHERE (%s = '' OR u.full_name ILIKE %s OR u.email ILIKE %s)

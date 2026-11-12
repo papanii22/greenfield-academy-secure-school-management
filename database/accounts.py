@@ -53,6 +53,18 @@ def list_pending_signups() -> list[dict[str, Any]]:
             return cursor.fetchall()
 
 
+def get_signup_status(user_id: int) -> str | None:
+    """'pending', 'rejected', 'approved' or None when the user never signed up."""
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT status FROM signup_requests WHERE user_id = %s",
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            return row["status"] if row else None
+
+
 def get_pending_signup(user_id: int) -> dict[str, Any] | None:
     with connect_database() as connection:
         with connection.cursor() as cursor:
