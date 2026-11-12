@@ -223,7 +223,6 @@ def test_account_lifecycle_pages_load_only_local_assets(client, monkeypatch):
         session["mfa_verified"] = True
 
     paths = (
-        "/signup",
         "/request-reset",
         "/admin/pending-accounts",
         "/admin/pending-accounts/41",

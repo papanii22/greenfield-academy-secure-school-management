@@ -3,41 +3,6 @@ from typing import Any
 from database.db import connect_database, record_audit_event
 
 
-def submit_signup(
-    full_name: str,
-    email: str,
-    role: str,
-    password_hash: str,
-    ip_address: str | None,
-) -> int:
-    if role not in {"teacher", "student"}:
-        raise ValueError("Choose a teacher or student account.")
-
-    with connect_database() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO users (full_name, email, password_hash, role, is_active)
-                VALUES (%s, %s, %s, %s, FALSE)
-                RETURNING id
-                """,
-                (full_name, email, password_hash, role),
-            )
-            user_id = cursor.fetchone()["id"]
-            cursor.execute(
-                "INSERT INTO signup_requests (user_id) VALUES (%s)",
-                (user_id,),
-            )
-            record_audit_event(
-                None,
-                "signup_submitted",
-                ip_address,
-                connection=connection,
-                target_user_id=user_id,
-            )
-    return user_id
-
-
 def list_pending_signups() -> list[dict[str, Any]]:
     with connect_database() as connection:
         with connection.cursor() as cursor:

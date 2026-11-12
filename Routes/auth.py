@@ -26,8 +26,7 @@ from flask import (
     url_for,
 )
 from flask_wtf import FlaskForm
-from psycopg import errors
-from wtforms import PasswordField, SelectChoice, SelectField, StringField, SubmitField
+from wtforms import PasswordField, StringField, SubmitField
 from wtforms.validators import EqualTo, InputRequired, Length, Regexp
 
 from database import accounts
@@ -72,45 +71,6 @@ class LoginForm(FlaskForm):
         validators=[InputRequired(), Length(max=256)],
     )
     submit = SubmitField("Sign in")
-
-
-class SignUpForm(FlaskForm):
-    full_name = StringField(
-        "Full name",
-        validators=[InputRequired(), Length(max=120)],
-    )
-    email = StringField(
-        "Email address",
-        validators=[
-            InputRequired(),
-            Length(max=254),
-            Regexp(
-                r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
-                message="Enter a valid email address.",
-            ),
-        ],
-    )
-    role = SelectField(
-        "Account type",
-        choices=[
-            SelectChoice("teacher", "Teacher"),
-            SelectChoice("student", "Student"),
-        ],
-        validators=[InputRequired()],
-    )
-    password = PasswordField(
-        "Password",
-        validators=[InputRequired(), Length(min=12, max=256)],
-    )
-    confirm_password = PasswordField(
-        "Confirm password",
-        validators=[
-            InputRequired(),
-            Length(max=256),
-            EqualTo("password", message="The passwords do not match."),
-        ],
-    )
-    submit = SubmitField("Create account")
 
 
 class ResetRequestForm(FlaskForm):
@@ -354,33 +314,6 @@ def login() -> Any:
         return redirect(url_for(endpoint))
 
     return _render_login(form)
-
-
-@auth_bp.route("/signup", methods=["GET", "POST"])
-@limiter.limit("5 per hour")
-def signup() -> Any:
-    form = SignUpForm()
-    submitted = False
-    if form.validate_on_submit():
-        role = form.role.data
-        if role not in {"teacher", "student"}:
-            form.role.errors.append("Choose a teacher or student account.")
-        else:
-            try:
-                accounts.submit_signup(
-                    form.full_name.data.strip(),
-                    form.email.data.strip().lower(),
-                    role,
-                    password_hasher.hash(form.password.data),
-                    request.remote_addr,
-                )
-            except errors.UniqueViolation:
-                pass
-            submitted = True
-    response = make_response(
-        render_template("auth/signup.html", form=form, submitted=submitted)
-    )
-    return _no_store(response)
 
 
 @auth_bp.route("/request-reset", methods=["GET", "POST"])

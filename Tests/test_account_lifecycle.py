@@ -338,7 +338,7 @@ def test_reset_storage_changes_password_and_version_without_touching_mfa(
 
 
 def test_new_public_pages_are_unprotected_by_login_but_csrf_protected(client):
-    for route in ("/signup", "/request-reset"):
+    for route in ("/request-reset",):
         response = client.get(route)
         assert response.status_code == 200
         assert b'name="csrf_token"' in response.data
