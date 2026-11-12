@@ -191,13 +191,13 @@ def test_duplicate_signup_has_the_same_generic_response(client, monkeypatch):
     assert b"Your request has been received. An administrator must approve your account before you can sign in." in response.data
 
 
-def test_signup_is_public_and_login_links_to_signup(client):
+def test_signup_is_public_and_login_does_not_link_to_signup(client):
     response = client.get("/signup")
     login_response = client.get("/login")
 
     assert response.status_code == 200
-    assert b"Create account" in login_response.data
-    assert b'href="/signup"' in login_response.data
+    assert b"Create account" not in login_response.data
+    assert b'href="/signup"' not in login_response.data
 
 
 def test_temporary_password_login_requires_mfa_before_password_change(client, monkeypatch):
