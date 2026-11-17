@@ -72,6 +72,29 @@ def test_login_has_nonce_protected_theme_script(client):
     assert 'href="/Static/css/tokens.css?v=' in page
 
 
+def test_html_responses_send_nosniff_and_no_hsts_over_plain_http(client):
+    response = client.get("/login")
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert "Strict-Transport-Security" not in response.headers
+
+
+def test_html_responses_send_hsts_over_https(client):
+    response = client.get("/login", base_url="https://localhost")
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Strict-Transport-Security"] == (
+        "max-age=31536000; includeSubDomains"
+    )
+
+
+def test_hsts_sent_when_production_is_https_only():
+    app = create_app({"TESTING": True, "SESSION_COOKIE_SECURE": True})
+    response = app.test_client().get("/healthz")
+
+    assert "max-age=31536000" in response.headers["Strict-Transport-Security"]
+
+
 def test_static_icons_and_theme_assets_are_served_locally(client):
     required_assets = (
         "/Static/icons/sprite.svg",
