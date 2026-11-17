@@ -283,6 +283,14 @@ def create_app(test_config: dict | None = None) -> Flask:
             "form-action 'self'; "
             "frame-ancestors 'none'"
         )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # Browsers ignore HSTS over plain HTTP, so send it whenever the request
+        # arrived over HTTPS or production has declared itself HTTPS-only.
+        if request.is_secure or app.config.get("SESSION_COOKIE_SECURE"):
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
         if (
             request.endpoint == "static"
             and request.args.get("v")
